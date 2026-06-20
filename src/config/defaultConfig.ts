@@ -23,6 +23,9 @@ export const defaultConfig: MaintainerKitConfig = {
     name: "",
     max_input_tokens: 12000
   },
+  language: {
+    output: "en"
+  },
   metrics: {
     primary: [],
     secondary: []
@@ -49,4 +52,3 @@ export const defaultConfig: MaintainerKitConfig = {
     ]
   }
 };
-

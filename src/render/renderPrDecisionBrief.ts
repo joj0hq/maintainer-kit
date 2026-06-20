@@ -1,70 +1,125 @@
 import type { PrDecisionBrief } from "../ai/schemas/prDecisionBriefSchema.js";
-import { renderBulletList, renderChecklist, renderQuotedDraft, sanitizeMarkdownText } from "./markdown.js";
+import type { OutputLanguage } from "../config/schema.js";
+import {
+  renderBulletList,
+  renderChecklist,
+  renderQuotedDraft,
+  sanitizeMarkdownText
+} from "./markdown.js";
 
 export const PR_DECISION_BRIEF_MARKER = "<!-- maintainer-kit:decision-brief -->";
 
 export interface RenderPrDecisionBriefOptions {
   brief: PrDecisionBrief;
   diffWasTruncated: boolean;
+  language?: OutputLanguage;
 }
+
+const copy = {
+  en: {
+    title: "Maintainer Kit Decision Brief",
+    disclaimer: "This is an AI-generated Decision Brief. Please review before taking action.",
+    truncationNote: "Note: Some diff content was truncated because of configured size limits.",
+    summary: "Summary",
+    decisionNeeded: "Decision Needed",
+    impactMap: "Impact Map",
+    userFlows: "User flows",
+    productOrRepositoryAreas: "Product / repository areas",
+    metricsPossiblyAffected: "Metrics possibly affected",
+    technicalAreas: "Technical areas",
+    missingContext: "Missing Context",
+    recommendedReviewers: "Recommended Reviewers",
+    qaChecklist: "QA Checklist",
+    suggestedNextAction: "Suggested Next Action",
+    suggestedResponseDraft: "Suggested Response Draft",
+    notSpecified: "Not specified.",
+    noneIdentified: "None identified.",
+    emptyChecklist: "Add a targeted verification case.",
+    emptyItem: "Not specified"
+  },
+  ja: {
+    title: "Maintainer Kit 判断ブリーフ",
+    disclaimer: "これはAI生成の判断ブリーフです。対応前に内容を確認してください。",
+    truncationNote: "注: 設定されたサイズ上限により、一部のdiff内容は切り詰められています。",
+    summary: "要約",
+    decisionNeeded: "必要な判断",
+    impactMap: "影響範囲",
+    userFlows: "ユーザーフロー",
+    productOrRepositoryAreas: "プロダクト / リポジトリ領域",
+    metricsPossiblyAffected: "影響する可能性のある指標",
+    technicalAreas: "技術領域",
+    missingContext: "不足している文脈",
+    recommendedReviewers: "推奨レビュアー",
+    qaChecklist: "QA チェックリスト",
+    suggestedNextAction: "推奨される次のアクション",
+    suggestedResponseDraft: "返信ドラフト",
+    notSpecified: "未指定です。",
+    noneIdentified: "特になし。",
+    emptyChecklist: "対象に合わせた確認項目を追加してください。",
+    emptyItem: "未指定"
+  }
+} satisfies Record<OutputLanguage, Record<string, string>>;
 
 export function renderPrDecisionBrief(options: RenderPrDecisionBriefOptions): string {
   const { brief, diffWasTruncated } = options;
+  const language = options.language ?? "en";
+  const labels = copy[language];
 
-  const truncationNote = diffWasTruncated
-    ? "\n\nNote: Some diff content was truncated because of configured size limits."
-    : "";
+  const truncationNote = diffWasTruncated ? `\n\n${labels.truncationNote}` : "";
 
   return `${PR_DECISION_BRIEF_MARKER}
-## Maintainer Kit Decision Brief
+## ${labels.title}
 
-This is an AI-generated Decision Brief. Please review before taking action.${truncationNote}
+${labels.disclaimer}${truncationNote}
 
-### Summary
+### ${labels.summary}
 
-${sanitizeMarkdownText(brief.summary) || "Not specified."}
+${sanitizeMarkdownText(brief.summary) || labels.notSpecified}
 
-### Decision Needed
+### ${labels.decisionNeeded}
 
-${sanitizeMarkdownText(brief.decisionNeeded) || "Not specified."}
+${sanitizeMarkdownText(brief.decisionNeeded) || labels.notSpecified}
 
-### Impact Map
+### ${labels.impactMap}
 
-**User flows**
+**${labels.userFlows}**
 
-${renderBulletList(brief.impactMap.userFlows)}
+${renderBulletList(brief.impactMap.userFlows, labels.noneIdentified, labels.emptyItem)}
 
-**Product / repository areas**
+**${labels.productOrRepositoryAreas}**
 
-${renderBulletList(brief.impactMap.productOrRepositoryAreas)}
+${renderBulletList(brief.impactMap.productOrRepositoryAreas, labels.noneIdentified, labels.emptyItem)}
 
-**Metrics possibly affected**
+**${labels.metricsPossiblyAffected}**
 
-${renderBulletList(brief.impactMap.metricsPossiblyAffected)}
+${renderBulletList(brief.impactMap.metricsPossiblyAffected, labels.noneIdentified, labels.emptyItem)}
 
-**Technical areas**
+**${labels.technicalAreas}**
 
-${renderBulletList(brief.impactMap.technicalAreas)}
+${renderBulletList(brief.impactMap.technicalAreas, labels.noneIdentified, labels.emptyItem)}
 
-### Missing Context
+### ${labels.missingContext}
 
-${renderBulletList(brief.missingContext)}
+${renderBulletList(brief.missingContext, labels.noneIdentified, labels.emptyItem)}
 
-### Recommended Reviewers
+### ${labels.recommendedReviewers}
 
-${renderBulletList(brief.recommendedReviewers.map((reviewer) => `${reviewer.role}: ${reviewer.reason}`))}
+${renderBulletList(
+  brief.recommendedReviewers.map((reviewer) => `${reviewer.role}: ${reviewer.reason}`),
+  labels.noneIdentified,
+  labels.emptyItem
+)}
 
-### QA Checklist
+### ${labels.qaChecklist}
 
-${renderChecklist(brief.qaChecklist)}
+${renderChecklist(brief.qaChecklist, labels.emptyChecklist, labels.emptyItem)}
 
-### Suggested Next Action
+### ${labels.suggestedNextAction}
 
-${sanitizeMarkdownText(brief.suggestedNextAction) || "Not specified."}
+${sanitizeMarkdownText(brief.suggestedNextAction) || labels.notSpecified}
 
-### Suggested Response Draft
+### ${labels.suggestedResponseDraft}
 
-${renderQuotedDraft(brief.suggestedResponseDraft)}
+${renderQuotedDraft(brief.suggestedResponseDraft, labels.notSpecified)}
 `;
 }
-

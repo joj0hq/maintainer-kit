@@ -25,4 +25,30 @@ describe("renderIssueIntakeBrief", () => {
     expect(output).toContain("- Reproduction steps");
     expect(output).not.toContain("hidden");
   });
+
+  it("renders Japanese labels when requested", () => {
+    const output = renderIssueIntakeBrief(
+      {
+        issueType: "bug",
+        summary: "ログインに失敗します",
+        actionability: "high",
+        missingContext: [],
+        impactMap: {
+          userFlowsOrRepositoryAreas: ["認証"],
+          metricsPossiblyAffected: []
+        },
+        suggestedLabels: ["bug"],
+        recommendedOwnerOrReviewer: [],
+        suggestedNextAction: "再現手順を確認する",
+        suggestedResponseDraft: "再現手順を共有してもらえますか？",
+        confidence: "high"
+      },
+      { language: "ja" }
+    );
+
+    expect(output).toContain("## Maintainer Kit Issue 整理ブリーフ");
+    expect(output).toContain("### 不足している文脈");
+    expect(output).toContain("- 特になし。");
+    expect(output).toContain("### 推奨される次のアクション");
+  });
 });

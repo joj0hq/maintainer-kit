@@ -7,6 +7,8 @@ as `v0.1.0`; major tags such as `v0` may move to the latest compatible release.
 
 ## Unreleased
 
+- Add Japanese output support for generated Issue Intake and PR Decision Brief comments.
+
 ## 0.1.0 - 2026-06-20
 
 - Initial Maintainer Kit GitHub Action.

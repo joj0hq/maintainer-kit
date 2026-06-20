@@ -50,6 +50,7 @@ before a 1.0 release.
   `pull_request.reopened`
 - repository context config via `.maintainer-kit.yml`
 - stable Markdown rendering from structured model output
+- English and Japanese brief comments
 - create, update, or skip comment publishing
 - dry-run mode for testing workflows safely
 - secret redaction, file filtering, and diff truncation before model calls
@@ -174,7 +175,7 @@ jobs:
   decision-brief:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: joj0hq/maintainer-kit@v0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -184,6 +185,9 @@ jobs:
 ```
 
 Add `OPENAI_API_KEY` to your repository or organization secrets.
+
+Brief comments are generated in English by default. Set `output-language: ja`, or configure
+`language.output: ja`, to post Japanese comments.
 
 ## Repository Context
 
@@ -217,6 +221,9 @@ model:
   provider: openai
   name: gpt-4.1-mini
   max_input_tokens: 12000
+
+language:
+  output: en
 
 metrics:
   primary:
@@ -265,25 +272,26 @@ See [.maintainer-kit.example.yml](.maintainer-kit.example.yml) for a fuller exam
 
 ## Inputs
 
-| Input | Required | Default | Description |
-| --- | --- | --- | --- |
-| `github-token` | yes | | Token used to read Issues/PRs and post comments. |
-| `openai-api-key` | yes | | OpenAI API key used to generate Decision Briefs. |
-| `config-path` | no | `.maintainer-kit.yml` | Path to the repository context config. |
-| `mode` | no | `suggest` | Supported values: `suggest`, `dry-run`. |
-| `comment-mode` | no | `update` | Supported values: `create`, `update`, `none`. |
-| `model` | no | config value | Model override. If omitted and config is empty, `gpt-4.1-mini` is used. |
+| Input             | Required | Default               | Description                                                             |
+| ----------------- | -------- | --------------------- | ----------------------------------------------------------------------- |
+| `github-token`    | yes      |                       | Token used to read Issues/PRs and post comments.                        |
+| `openai-api-key`  | yes      |                       | OpenAI API key used to generate Decision Briefs.                        |
+| `config-path`     | no       | `.maintainer-kit.yml` | Path to the repository context config.                                  |
+| `mode`            | no       | `suggest`             | Supported values: `suggest`, `dry-run`.                                 |
+| `comment-mode`    | no       | `update`              | Supported values: `create`, `update`, `none`.                           |
+| `model`           | no       | config value          | Model override. If omitted and config is empty, `gpt-4.1-mini` is used. |
+| `output-language` | no       | config value          | Brief comment language. Supported values: `en`, `ja`.                   |
 
 ## Behavior
 
-| Event | Result |
-| --- | --- |
-| `issues.opened` | Creates or updates an Issue Intake Brief. |
-| `issues.edited` | Creates or updates an Issue Intake Brief. |
-| `pull_request.opened` | Creates or updates a PR Decision Brief. |
+| Event                      | Result                                                                |
+| -------------------------- | --------------------------------------------------------------------- |
+| `issues.opened`            | Creates or updates an Issue Intake Brief.                             |
+| `issues.edited`            | Creates or updates an Issue Intake Brief.                             |
+| `pull_request.opened`      | Creates or updates a PR Decision Brief.                               |
 | `pull_request.synchronize` | Creates or updates a PR Decision Brief with the latest changed files. |
-| `pull_request.reopened` | Creates or updates a PR Decision Brief. |
-| Unsupported events | Exit successfully without posting a comment. |
+| `pull_request.reopened`    | Creates or updates a PR Decision Brief.                               |
+| Unsupported events         | Exit successfully without posting a comment.                          |
 
 Comment modes:
 

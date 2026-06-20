@@ -14,6 +14,7 @@ export function buildPrDecisionPrompt(
       "Do not provide line-by-line review comments.",
       "Do not provide exact code patches.",
       "Focus on decision support: missing context, impact, QA, reviewers, and the next useful human action.",
+      languageInstruction(config),
       "Use the repository/product context when it is relevant.",
       "Be concrete and practical.",
       "Avoid hallucinating facts. If information is missing, say it is missing.",
@@ -38,6 +39,7 @@ export function buildPrDecisionPrompt(
           suggestedResponseDraft: "string",
           confidence: "low | medium | high"
         },
+        outputLanguage: config.language.output,
         repositoryContext: repositoryContextForPrompt(config),
         pullRequest: {
           number: pullRequest.number,
@@ -75,6 +77,14 @@ export function buildPrDecisionPrompt(
       2
     )
   };
+}
+
+function languageInstruction(config: MaintainerKitConfig): string {
+  if (config.language.output === "ja") {
+    return "Write all user-facing string fields in Japanese. Keep code, file paths, config keys, product names, and existing labels unchanged when that is clearer.";
+  }
+
+  return "Write all user-facing string fields in English.";
 }
 
 function repositoryContextForPrompt(config: MaintainerKitConfig): Record<string, unknown> {

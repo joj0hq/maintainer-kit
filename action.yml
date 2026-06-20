@@ -18,15 +18,18 @@ inputs:
     required: false
     default: .maintainer-kit.yml
   mode:
-    description: Execution mode. Supported values: suggest, dry-run.
+    description: "Execution mode. Supported values: suggest, dry-run."
     required: false
     default: suggest
   comment-mode:
-    description: Comment behavior. Supported values: create, update, none.
+    description: "Comment behavior. Supported values: create, update, none."
     required: false
     default: update
   model:
     description: Model name to use. If omitted, use config value.
+    required: false
+  output-language:
+    description: "Language for generated brief comments. Supported values: en, ja."
     required: false
 
 runs:

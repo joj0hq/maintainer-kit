@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 const stringArraySchema = z.array(z.string()).default([]);
+const outputLanguageSchema = z.enum(["en", "ja"]);
 
 const projectTypeSchema = z.union([z.literal("oss"), z.literal("product")], {
   errorMap: () => ({ message: 'must be either "oss" or "product"' })
@@ -37,6 +38,11 @@ export const maintainerKitConfigSchema = z.object({
       max_input_tokens: z.number().int().positive()
     })
     .strict(),
+  language: z
+    .object({
+      output: outputLanguageSchema
+    })
+    .strict(),
   metrics: z
     .object({
       primary: stringArraySchema,
@@ -64,6 +70,6 @@ export const maintainerKitConfigSchema = z.object({
 
 export type MaintainerKitConfig = z.infer<typeof maintainerKitConfigSchema>;
 export type CommentMode = MaintainerKitConfig["behavior"]["comment_mode"];
+export type OutputLanguage = MaintainerKitConfig["language"]["output"];
 
 export type ExecutionMode = "suggest" | "dry-run";
-

@@ -7,12 +7,14 @@ import {
   issueIntakeBriefSchema,
   type IssueIntakeBrief
 } from "./ai/schemas/issueIntakeBriefSchema.js";
-import {
-  prDecisionBriefSchema,
-  type PrDecisionBrief
-} from "./ai/schemas/prDecisionBriefSchema.js";
+import { prDecisionBriefSchema, type PrDecisionBrief } from "./ai/schemas/prDecisionBriefSchema.js";
 import { loadConfig } from "./config/loadConfig.js";
-import type { CommentMode, ExecutionMode, MaintainerKitConfig } from "./config/schema.js";
+import type {
+  CommentMode,
+  ExecutionMode,
+  MaintainerKitConfig,
+  OutputLanguage
+} from "./config/schema.js";
 import {
   getEventType,
   isSupportedIssueEvent,
@@ -20,10 +22,7 @@ import {
   type ActionContextLike
 } from "./github/context.js";
 import { getIssueContext, type IssueContext } from "./github/getIssueContext.js";
-import {
-  getPullRequestContext,
-  type PullRequestContext
-} from "./github/getPullRequestContext.js";
+import { getPullRequestContext, type PullRequestContext } from "./github/getPullRequestContext.js";
 import { publishComment } from "./github/publishComment.js";
 import { logUsage } from "./metrics/usageLog.js";
 import { filterFiles } from "./privacy/filterFiles.js";
@@ -47,7 +46,11 @@ async function run(): Promise<void> {
   const actionContext = github.context as unknown as ActionContextLike;
   const eventType = getEventType(actionContext);
   const configPath = core.getInput("config-path") || ".maintainer-kit.yml";
-  const config = await loadConfig(configPath);
+  const loadedConfig = await loadConfig(configPath);
+  const config = withOutputLanguage(
+    loadedConfig,
+    core.getInput("output-language") || loadedConfig.language.output
+  );
 
   if (!isSupportedIssueEvent(actionContext) && !isSupportedPullRequestEvent(actionContext)) {
     core.info(`Unsupported event type: ${eventType}. maintainer-kit did not run.`);
@@ -55,7 +58,9 @@ async function run(): Promise<void> {
   }
 
   const executionMode = parseExecutionMode(core.getInput("mode") || "suggest");
-  const commentMode = parseCommentMode(core.getInput("comment-mode") || config.behavior.comment_mode);
+  const commentMode = parseCommentMode(
+    core.getInput("comment-mode") || config.behavior.comment_mode
+  );
   const dryRun = executionMode === "dry-run" || config.behavior.dry_run;
   const githubToken = getRequiredInput("github-token");
   const openAiApiKey = getRequiredInput("openai-api-key");
@@ -116,7 +121,7 @@ async function runIssueBrief(options: HandlerOptions): Promise<void> {
     prompt,
     schema: issueIntakeBriefSchema
   });
-  const body = renderIssueIntakeBrief(brief);
+  const body = renderIssueIntakeBrief(brief, { language: options.config.language.output });
   const commentResult = await publishComment({
     octokit: options.octokit,
     repository: issue.repository,
@@ -154,7 +159,11 @@ async function runPrBrief(options: HandlerOptions): Promise<void> {
     prompt,
     schema: prDecisionBriefSchema
   });
-  const body = renderPrDecisionBrief({ brief, diffWasTruncated: diff.diffWasTruncated });
+  const body = renderPrDecisionBrief({
+    brief,
+    diffWasTruncated: diff.diffWasTruncated,
+    language: options.config.language.output
+  });
   const commentResult = await publishComment({
     octokit: options.octokit,
     repository: pullRequest.repository,
@@ -179,10 +188,7 @@ async function runPrBrief(options: HandlerOptions): Promise<void> {
   });
 }
 
-function prepareDiff(
-  pullRequest: PullRequestContext,
-  config: MaintainerKitConfig
-): TruncatedDiff {
+function prepareDiff(pullRequest: PullRequestContext, config: MaintainerKitConfig): TruncatedDiff {
   const filteredFiles = filterFiles(pullRequest.changedFiles, config.privacy.exclude_files);
   const redactedFiles = config.privacy.redact_secrets
     ? redactSecretsInFiles(filteredFiles)
@@ -233,6 +239,26 @@ function parseCommentMode(value: string): CommentMode {
     return value;
   }
   throw new Error(`Invalid comment-mode: ${value}. Supported values: create, update, none.`);
+}
+
+function withOutputLanguage(
+  config: MaintainerKitConfig,
+  outputLanguage: string
+): MaintainerKitConfig {
+  return {
+    ...config,
+    language: {
+      ...config.language,
+      output: parseOutputLanguage(outputLanguage)
+    }
+  };
+}
+
+function parseOutputLanguage(value: string): OutputLanguage {
+  if (value === "en" || value === "ja") {
+    return value;
+  }
+  throw new Error(`Invalid output-language: ${value}. Supported values: en, ja.`);
 }
 
 function getRequiredInput(name: string): string {

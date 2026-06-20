@@ -18,6 +18,7 @@ describe("loadConfig", () => {
 
     expect(config.project.name).toBe("example-library");
     expect(config.behavior.comment_mode).toBe("update");
+    expect(config.language.output).toBe("en");
   });
 
   it("deep merges user config with defaults", () => {
@@ -27,6 +28,9 @@ describe("loadConfig", () => {
       },
       privacy: {
         max_diff_lines: 10
+      },
+      language: {
+        output: "ja"
       }
     });
 
@@ -34,6 +38,7 @@ describe("loadConfig", () => {
     expect((merged.project as any).type).toBe("oss");
     expect((merged.privacy as any).max_diff_lines).toBe(10);
     expect((merged.privacy as any).redact_secrets).toBe(true);
+    expect((merged.language as any).output).toBe("ja");
   });
 
   it("reports invalid project types clearly", async () => {

@@ -29989,6 +29989,7 @@ function buildIssueIntakePrompt(config, issue) {
         system: [
             "You are Maintainer Kit, a repository decision assistant for GitHub maintainers and product teams.",
             "Focus on issue triage decision support: missing context, impact, owner/reviewer, and the next useful human action.",
+            languageInstruction(config),
             "Use the repository/product context when it is relevant.",
             "Be concrete, practical, and contributor-friendly.",
             "Avoid hallucinating facts. If information is missing, say it is missing.",
@@ -30012,6 +30013,7 @@ function buildIssueIntakePrompt(config, issue) {
                 suggestedResponseDraft: "string",
                 confidence: "low | medium | high"
             },
+            outputLanguage: config.language.output,
             repositoryContext: repositoryContextForPrompt(config),
             issue: {
                 number: issue.number,
@@ -30026,6 +30028,12 @@ function buildIssueIntakePrompt(config, issue) {
             }
         }, null, 2)
     };
+}
+function languageInstruction(config) {
+    if (config.language.output === "ja") {
+        return "Write all user-facing string fields in Japanese. Keep code, file paths, config keys, product names, and existing labels unchanged when that is clearer.";
+    }
+    return "Write all user-facing string fields in English.";
 }
 function repositoryContextForPrompt(config) {
     return {
@@ -30054,6 +30062,7 @@ function buildPrDecisionPrompt(config, pullRequest, diff) {
             "Do not provide line-by-line review comments.",
             "Do not provide exact code patches.",
             "Focus on decision support: missing context, impact, QA, reviewers, and the next useful human action.",
+            languageInstruction(config),
             "Use the repository/product context when it is relevant.",
             "Be concrete and practical.",
             "Avoid hallucinating facts. If information is missing, say it is missing.",
@@ -30077,6 +30086,7 @@ function buildPrDecisionPrompt(config, pullRequest, diff) {
                 suggestedResponseDraft: "string",
                 confidence: "low | medium | high"
             },
+            outputLanguage: config.language.output,
             repositoryContext: repositoryContextForPrompt(config),
             pullRequest: {
                 number: pullRequest.number,
@@ -30111,6 +30121,12 @@ function buildPrDecisionPrompt(config, pullRequest, diff) {
             }
         }, null, 2)
     };
+}
+function languageInstruction(config) {
+    if (config.language.output === "ja") {
+        return "Write all user-facing string fields in Japanese. Keep code, file paths, config keys, product names, and existing labels unchanged when that is clearer.";
+    }
+    return "Write all user-facing string fields in English.";
 }
 function repositoryContextForPrompt(config) {
     return {
@@ -30235,6 +30251,9 @@ exports.defaultConfig = {
         name: "",
         max_input_tokens: 12000
     },
+    language: {
+        output: "en"
+    },
     metrics: {
         primary: [],
         secondary: []
@@ -30350,6 +30369,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.maintainerKitConfigSchema = void 0;
 const zod_1 = __nccwpck_require__(6827);
 const stringArraySchema = zod_1.z.array(zod_1.z.string()).default([]);
+const outputLanguageSchema = zod_1.z.enum(["en", "ja"]);
 const projectTypeSchema = zod_1.z.union([zod_1.z.literal("oss"), zod_1.z.literal("product")], {
     errorMap: () => ({ message: 'must be either "oss" or "product"' })
 });
@@ -30382,6 +30402,11 @@ exports.maintainerKitConfigSchema = zod_1.z.object({
         provider: zod_1.z.literal("openai"),
         name: zod_1.z.string(),
         max_input_tokens: zod_1.z.number().int().positive()
+    })
+        .strict(),
+    language: zod_1.z
+        .object({
+        output: outputLanguageSchema
     })
         .strict(),
     metrics: zod_1.z
@@ -30701,7 +30726,8 @@ async function run() {
     const actionContext = github.context;
     const eventType = (0, context_js_1.getEventType)(actionContext);
     const configPath = core.getInput("config-path") || ".maintainer-kit.yml";
-    const config = await (0, loadConfig_js_1.loadConfig)(configPath);
+    const loadedConfig = await (0, loadConfig_js_1.loadConfig)(configPath);
+    const config = withOutputLanguage(loadedConfig, core.getInput("output-language") || loadedConfig.language.output);
     if (!(0, context_js_1.isSupportedIssueEvent)(actionContext) && !(0, context_js_1.isSupportedPullRequestEvent)(actionContext)) {
         core.info(`Unsupported event type: ${eventType}. maintainer-kit did not run.`);
         return;
@@ -30752,7 +30778,7 @@ async function runIssueBrief(options) {
         prompt,
         schema: issueIntakeBriefSchema_js_1.issueIntakeBriefSchema
     });
-    const body = (0, renderIssueIntakeBrief_js_1.renderIssueIntakeBrief)(brief);
+    const body = (0, renderIssueIntakeBrief_js_1.renderIssueIntakeBrief)(brief, { language: options.config.language.output });
     const commentResult = await (0, publishComment_js_1.publishComment)({
         octokit: options.octokit,
         repository: issue.repository,
@@ -30784,7 +30810,11 @@ async function runPrBrief(options) {
         prompt,
         schema: prDecisionBriefSchema_js_1.prDecisionBriefSchema
     });
-    const body = (0, renderPrDecisionBrief_js_1.renderPrDecisionBrief)({ brief, diffWasTruncated: diff.diffWasTruncated });
+    const body = (0, renderPrDecisionBrief_js_1.renderPrDecisionBrief)({
+        brief,
+        diffWasTruncated: diff.diffWasTruncated,
+        language: options.config.language.output
+    });
     const commentResult = await (0, publishComment_js_1.publishComment)({
         octokit: options.octokit,
         repository: pullRequest.repository,
@@ -30848,6 +30878,21 @@ function parseCommentMode(value) {
         return value;
     }
     throw new Error(`Invalid comment-mode: ${value}. Supported values: create, update, none.`);
+}
+function withOutputLanguage(config, outputLanguage) {
+    return {
+        ...config,
+        language: {
+            ...config.language,
+            output: parseOutputLanguage(outputLanguage)
+        }
+    };
+}
+function parseOutputLanguage(value) {
+    if (value === "en" || value === "ja") {
+        return value;
+    }
+    throw new Error(`Invalid output-language: ${value}. Supported values: en, ja.`);
 }
 function getRequiredInput(name) {
     const value = core.getInput(name);
@@ -31063,32 +31108,32 @@ function sanitizeMarkdownText(value) {
         .replace(/\r\n/g, "\n")
         .trim();
 }
-function sanitizeListItem(value) {
+function sanitizeListItem(value, emptyText = "Not specified") {
     const sanitized = sanitizeMarkdownText(value)
         .replace(/\n+/g, " ")
         .replace(/^\s*[-*]\s+/g, "")
         .replace(/^\s*\[[ xX]\]\s+/g, "")
         .trim();
-    return sanitized || "Not specified";
+    return sanitized || emptyText;
 }
-function renderBulletList(items, emptyText = "None identified.") {
-    const normalized = items.map(sanitizeListItem).filter(Boolean);
+function renderBulletList(items, emptyText = "None identified.", emptyItemText = "Not specified") {
+    const normalized = items.map((item) => sanitizeListItem(item, emptyItemText)).filter(Boolean);
     if (normalized.length === 0) {
         return `- ${emptyText}`;
     }
     return normalized.map((item) => `- ${item}`).join("\n");
 }
-function renderChecklist(items, emptyText = "Add a targeted verification case.") {
-    const normalized = items.map(sanitizeListItem).filter(Boolean);
+function renderChecklist(items, emptyText = "Add a targeted verification case.", emptyItemText = "Not specified") {
+    const normalized = items.map((item) => sanitizeListItem(item, emptyItemText)).filter(Boolean);
     if (normalized.length === 0) {
         return `- [ ] ${emptyText}`;
     }
     return normalized.map((item) => `- [ ] ${item}`).join("\n");
 }
-function renderQuotedDraft(value) {
+function renderQuotedDraft(value, emptyText = "Not specified.") {
     const sanitized = sanitizeMarkdownText(value);
     if (!sanitized) {
-        return "> Not specified.";
+        return `> ${emptyText}`;
     }
     return sanitized
         .split("\n")
@@ -31110,65 +31155,122 @@ exports.renderIssueIntakeBrief = renderIssueIntakeBrief;
 const markdown_js_1 = __nccwpck_require__(9178);
 exports.ISSUE_INTAKE_BRIEF_MARKER = "<!-- maintainer-kit:issue-intake-brief -->";
 const issueTypeLabels = {
-    bug: "Bug",
-    feature_request: "Feature Request",
-    question: "Question",
-    documentation: "Documentation",
-    maintenance: "Maintenance",
-    unknown: "Unknown"
+    en: {
+        bug: "Bug",
+        feature_request: "Feature Request",
+        question: "Question",
+        documentation: "Documentation",
+        maintenance: "Maintenance",
+        unknown: "Unknown"
+    },
+    ja: {
+        bug: "バグ",
+        feature_request: "機能リクエスト",
+        question: "質問",
+        documentation: "ドキュメント",
+        maintenance: "メンテナンス",
+        unknown: "不明"
+    }
 };
 const actionabilityLabels = {
-    high: "High",
-    medium: "Medium",
-    low: "Low"
+    en: {
+        high: "High",
+        medium: "Medium",
+        low: "Low"
+    },
+    ja: {
+        high: "高",
+        medium: "中",
+        low: "低"
+    }
 };
-function renderIssueIntakeBrief(brief) {
+const copy = {
+    en: {
+        title: "Maintainer Kit Issue Intake Brief",
+        disclaimer: "This is an AI-generated Issue Intake Brief. Please review before taking action.",
+        issueType: "Issue Type",
+        summary: "Summary",
+        actionability: "Actionability",
+        missingContext: "Missing Context",
+        impactMap: "Impact Map",
+        userFlowsOrRepositoryAreas: "User flows or repository areas",
+        metricsPossiblyAffected: "Metrics possibly affected",
+        suggestedLabels: "Suggested Labels",
+        recommendedOwnerOrReviewer: "Recommended Owner / Reviewer",
+        suggestedNextAction: "Suggested Next Action",
+        suggestedResponseDraft: "Suggested Response Draft",
+        notSpecified: "Not specified.",
+        noneIdentified: "None identified.",
+        emptyItem: "Not specified"
+    },
+    ja: {
+        title: "Maintainer Kit Issue 整理ブリーフ",
+        disclaimer: "これはAI生成のIssue整理ブリーフです。対応前に内容を確認してください。",
+        issueType: "Issue 種別",
+        summary: "要約",
+        actionability: "対応可能性",
+        missingContext: "不足している文脈",
+        impactMap: "影響範囲",
+        userFlowsOrRepositoryAreas: "ユーザーフローまたはリポジトリ領域",
+        metricsPossiblyAffected: "影響する可能性のある指標",
+        suggestedLabels: "推奨ラベル",
+        recommendedOwnerOrReviewer: "推奨オーナー / レビュアー",
+        suggestedNextAction: "推奨される次のアクション",
+        suggestedResponseDraft: "返信ドラフト",
+        notSpecified: "未指定です。",
+        noneIdentified: "特になし。",
+        emptyItem: "未指定"
+    }
+};
+function renderIssueIntakeBrief(brief, options = {}) {
+    const language = options.language ?? "en";
+    const labels = copy[language];
     return `${exports.ISSUE_INTAKE_BRIEF_MARKER}
-## Maintainer Kit Issue Intake Brief
+## ${labels.title}
 
-This is an AI-generated Issue Intake Brief. Please review before taking action.
+${labels.disclaimer}
 
-### Issue Type
+### ${labels.issueType}
 
-${issueTypeLabels[brief.issueType]}
+${issueTypeLabels[language][brief.issueType]}
 
-### Summary
+### ${labels.summary}
 
-${(0, markdown_js_1.sanitizeMarkdownText)(brief.summary) || "Not specified."}
+${(0, markdown_js_1.sanitizeMarkdownText)(brief.summary) || labels.notSpecified}
 
-### Actionability
+### ${labels.actionability}
 
-${actionabilityLabels[brief.actionability]}
+${actionabilityLabels[language][brief.actionability]}
 
-### Missing Context
+### ${labels.missingContext}
 
-${(0, markdown_js_1.renderBulletList)(brief.missingContext)}
+${(0, markdown_js_1.renderBulletList)(brief.missingContext, labels.noneIdentified, labels.emptyItem)}
 
-### Impact Map
+### ${labels.impactMap}
 
-**User flows or repository areas**
+**${labels.userFlowsOrRepositoryAreas}**
 
-${(0, markdown_js_1.renderBulletList)(brief.impactMap.userFlowsOrRepositoryAreas)}
+${(0, markdown_js_1.renderBulletList)(brief.impactMap.userFlowsOrRepositoryAreas, labels.noneIdentified, labels.emptyItem)}
 
-**Metrics possibly affected**
+**${labels.metricsPossiblyAffected}**
 
-${(0, markdown_js_1.renderBulletList)(brief.impactMap.metricsPossiblyAffected)}
+${(0, markdown_js_1.renderBulletList)(brief.impactMap.metricsPossiblyAffected, labels.noneIdentified, labels.emptyItem)}
 
-### Suggested Labels
+### ${labels.suggestedLabels}
 
-${(0, markdown_js_1.renderBulletList)(brief.suggestedLabels)}
+${(0, markdown_js_1.renderBulletList)(brief.suggestedLabels, labels.noneIdentified, labels.emptyItem)}
 
-### Recommended Owner / Reviewer
+### ${labels.recommendedOwnerOrReviewer}
 
-${(0, markdown_js_1.renderBulletList)(brief.recommendedOwnerOrReviewer.map((reviewer) => `${reviewer.role}: ${reviewer.reason}`))}
+${(0, markdown_js_1.renderBulletList)(brief.recommendedOwnerOrReviewer.map((reviewer) => `${reviewer.role}: ${reviewer.reason}`), labels.noneIdentified, labels.emptyItem)}
 
-### Suggested Next Action
+### ${labels.suggestedNextAction}
 
-${(0, markdown_js_1.sanitizeMarkdownText)(brief.suggestedNextAction) || "Not specified."}
+${(0, markdown_js_1.sanitizeMarkdownText)(brief.suggestedNextAction) || labels.notSpecified}
 
-### Suggested Response Draft
+### ${labels.suggestedResponseDraft}
 
-${(0, markdown_js_1.renderQuotedDraft)(brief.suggestedResponseDraft)}
+${(0, markdown_js_1.renderQuotedDraft)(brief.suggestedResponseDraft, labels.notSpecified)}
 `;
 }
 
@@ -31185,61 +31287,105 @@ exports.PR_DECISION_BRIEF_MARKER = void 0;
 exports.renderPrDecisionBrief = renderPrDecisionBrief;
 const markdown_js_1 = __nccwpck_require__(9178);
 exports.PR_DECISION_BRIEF_MARKER = "<!-- maintainer-kit:decision-brief -->";
+const copy = {
+    en: {
+        title: "Maintainer Kit Decision Brief",
+        disclaimer: "This is an AI-generated Decision Brief. Please review before taking action.",
+        truncationNote: "Note: Some diff content was truncated because of configured size limits.",
+        summary: "Summary",
+        decisionNeeded: "Decision Needed",
+        impactMap: "Impact Map",
+        userFlows: "User flows",
+        productOrRepositoryAreas: "Product / repository areas",
+        metricsPossiblyAffected: "Metrics possibly affected",
+        technicalAreas: "Technical areas",
+        missingContext: "Missing Context",
+        recommendedReviewers: "Recommended Reviewers",
+        qaChecklist: "QA Checklist",
+        suggestedNextAction: "Suggested Next Action",
+        suggestedResponseDraft: "Suggested Response Draft",
+        notSpecified: "Not specified.",
+        noneIdentified: "None identified.",
+        emptyChecklist: "Add a targeted verification case.",
+        emptyItem: "Not specified"
+    },
+    ja: {
+        title: "Maintainer Kit 判断ブリーフ",
+        disclaimer: "これはAI生成の判断ブリーフです。対応前に内容を確認してください。",
+        truncationNote: "注: 設定されたサイズ上限により、一部のdiff内容は切り詰められています。",
+        summary: "要約",
+        decisionNeeded: "必要な判断",
+        impactMap: "影響範囲",
+        userFlows: "ユーザーフロー",
+        productOrRepositoryAreas: "プロダクト / リポジトリ領域",
+        metricsPossiblyAffected: "影響する可能性のある指標",
+        technicalAreas: "技術領域",
+        missingContext: "不足している文脈",
+        recommendedReviewers: "推奨レビュアー",
+        qaChecklist: "QA チェックリスト",
+        suggestedNextAction: "推奨される次のアクション",
+        suggestedResponseDraft: "返信ドラフト",
+        notSpecified: "未指定です。",
+        noneIdentified: "特になし。",
+        emptyChecklist: "対象に合わせた確認項目を追加してください。",
+        emptyItem: "未指定"
+    }
+};
 function renderPrDecisionBrief(options) {
     const { brief, diffWasTruncated } = options;
-    const truncationNote = diffWasTruncated
-        ? "\n\nNote: Some diff content was truncated because of configured size limits."
-        : "";
+    const language = options.language ?? "en";
+    const labels = copy[language];
+    const truncationNote = diffWasTruncated ? `\n\n${labels.truncationNote}` : "";
     return `${exports.PR_DECISION_BRIEF_MARKER}
-## Maintainer Kit Decision Brief
+## ${labels.title}
 
-This is an AI-generated Decision Brief. Please review before taking action.${truncationNote}
+${labels.disclaimer}${truncationNote}
 
-### Summary
+### ${labels.summary}
 
-${(0, markdown_js_1.sanitizeMarkdownText)(brief.summary) || "Not specified."}
+${(0, markdown_js_1.sanitizeMarkdownText)(brief.summary) || labels.notSpecified}
 
-### Decision Needed
+### ${labels.decisionNeeded}
 
-${(0, markdown_js_1.sanitizeMarkdownText)(brief.decisionNeeded) || "Not specified."}
+${(0, markdown_js_1.sanitizeMarkdownText)(brief.decisionNeeded) || labels.notSpecified}
 
-### Impact Map
+### ${labels.impactMap}
 
-**User flows**
+**${labels.userFlows}**
 
-${(0, markdown_js_1.renderBulletList)(brief.impactMap.userFlows)}
+${(0, markdown_js_1.renderBulletList)(brief.impactMap.userFlows, labels.noneIdentified, labels.emptyItem)}
 
-**Product / repository areas**
+**${labels.productOrRepositoryAreas}**
 
-${(0, markdown_js_1.renderBulletList)(brief.impactMap.productOrRepositoryAreas)}
+${(0, markdown_js_1.renderBulletList)(brief.impactMap.productOrRepositoryAreas, labels.noneIdentified, labels.emptyItem)}
 
-**Metrics possibly affected**
+**${labels.metricsPossiblyAffected}**
 
-${(0, markdown_js_1.renderBulletList)(brief.impactMap.metricsPossiblyAffected)}
+${(0, markdown_js_1.renderBulletList)(brief.impactMap.metricsPossiblyAffected, labels.noneIdentified, labels.emptyItem)}
 
-**Technical areas**
+**${labels.technicalAreas}**
 
-${(0, markdown_js_1.renderBulletList)(brief.impactMap.technicalAreas)}
+${(0, markdown_js_1.renderBulletList)(brief.impactMap.technicalAreas, labels.noneIdentified, labels.emptyItem)}
 
-### Missing Context
+### ${labels.missingContext}
 
-${(0, markdown_js_1.renderBulletList)(brief.missingContext)}
+${(0, markdown_js_1.renderBulletList)(brief.missingContext, labels.noneIdentified, labels.emptyItem)}
 
-### Recommended Reviewers
+### ${labels.recommendedReviewers}
 
-${(0, markdown_js_1.renderBulletList)(brief.recommendedReviewers.map((reviewer) => `${reviewer.role}: ${reviewer.reason}`))}
+${(0, markdown_js_1.renderBulletList)(brief.recommendedReviewers.map((reviewer) => `${reviewer.role}: ${reviewer.reason}`), labels.noneIdentified, labels.emptyItem)}
 
-### QA Checklist
+### ${labels.qaChecklist}
 
-${(0, markdown_js_1.renderChecklist)(brief.qaChecklist)}
+${(0, markdown_js_1.renderChecklist)(brief.qaChecklist, labels.emptyChecklist, labels.emptyItem)}
 
-### Suggested Next Action
+### ${labels.suggestedNextAction}
 
-${(0, markdown_js_1.sanitizeMarkdownText)(brief.suggestedNextAction) || "Not specified."}
+${(0, markdown_js_1.sanitizeMarkdownText)(brief.suggestedNextAction) || labels.notSpecified}
 
-### Suggested Response Draft
+### ${labels.suggestedResponseDraft}
 
-${(0, markdown_js_1.renderQuotedDraft)(brief.suggestedResponseDraft)}
+${(0, markdown_js_1.renderQuotedDraft)(brief.suggestedResponseDraft, labels.notSpecified)}
 `;
 }
 

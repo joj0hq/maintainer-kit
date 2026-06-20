@@ -10,6 +10,7 @@ export function buildIssueIntakePrompt(
     system: [
       "You are Maintainer Kit, a repository decision assistant for GitHub maintainers and product teams.",
       "Focus on issue triage decision support: missing context, impact, owner/reviewer, and the next useful human action.",
+      languageInstruction(config),
       "Use the repository/product context when it is relevant.",
       "Be concrete, practical, and contributor-friendly.",
       "Avoid hallucinating facts. If information is missing, say it is missing.",
@@ -34,6 +35,7 @@ export function buildIssueIntakePrompt(
           suggestedResponseDraft: "string",
           confidence: "low | medium | high"
         },
+        outputLanguage: config.language.output,
         repositoryContext: repositoryContextForPrompt(config),
         issue: {
           number: issue.number,
@@ -51,6 +53,14 @@ export function buildIssueIntakePrompt(
       2
     )
   };
+}
+
+function languageInstruction(config: MaintainerKitConfig): string {
+  if (config.language.output === "ja") {
+    return "Write all user-facing string fields in Japanese. Keep code, file paths, config keys, product names, and existing labels unchanged when that is clearer.";
+  }
+
+  return "Write all user-facing string fields in English.";
 }
 
 function repositoryContextForPrompt(config: MaintainerKitConfig): Record<string, unknown> {
