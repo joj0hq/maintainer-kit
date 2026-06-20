@@ -1,6 +1,9 @@
 name: Release
 
 on:
+  push:
+    tags:
+      - "v*.*.*"
   workflow_dispatch:
     inputs:
       version:
@@ -24,6 +27,9 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    concurrency:
+      group: release-${{ inputs.version || github.ref_name }}
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v7
         with:
@@ -32,9 +38,35 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 20
+      - name: Resolve release inputs
+        id: release
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_PRERELEASE: ${{ inputs.prerelease }}
+          INPUT_UPDATE_MAJOR_TAG: ${{ inputs.update_major_tag }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            VERSION="$GITHUB_REF_NAME"
+            if [[ "$VERSION" == *-* ]]; then
+              PRERELEASE=true
+              UPDATE_MAJOR_TAG=false
+            else
+              PRERELEASE=false
+              UPDATE_MAJOR_TAG=true
+            fi
+          else
+            VERSION="$INPUT_VERSION"
+            PRERELEASE="$INPUT_PRERELEASE"
+            UPDATE_MAJOR_TAG="$INPUT_UPDATE_MAJOR_TAG"
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
+          echo "update_major_tag=$UPDATE_MAJOR_TAG" >> "$GITHUB_OUTPUT"
       - name: Validate version
         env:
-          VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.release.outputs.version }}
         run: |
           if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
             echo "Version must look like v0.1.0 or v0.1.0-beta.1"
@@ -48,8 +80,18 @@ jobs:
             exit 1
           fi
 
-          if git rev-parse "$VERSION" >/dev/null 2>&1; then
+          if gh release view "$VERSION" >/dev/null 2>&1; then
+            echo "GitHub Release $VERSION already exists"
+            exit 1
+          fi
+
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]] && git rev-parse "$VERSION" >/dev/null 2>&1; then
             echo "Tag $VERSION already exists"
+            exit 1
+          fi
+
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]] && ! git rev-parse "$VERSION" >/dev/null 2>&1; then
+            echo "Tag $VERSION must exist before creating a release from a tag push"
             exit 1
           fi
       - run: pnpm install --frozen-lockfile
@@ -60,18 +102,25 @@ jobs:
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ inputs.version }}
-          PRERELEASE: ${{ inputs.prerelease }}
+          VERSION: ${{ steps.release.outputs.version }}
+          PRERELEASE: ${{ steps.release.outputs.prerelease }}
         run: |
-          args=(release create "$VERSION" --target "$GITHUB_SHA" --title "$VERSION" --generate-notes)
+          args=(release create "$VERSION" --title "$VERSION" --generate-notes)
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            args+=(--verify-tag)
+          else
+            args+=(--target "$GITHUB_SHA")
+          fi
+
           if [[ "$PRERELEASE" == "true" ]]; then
             args+=(--prerelease)
           fi
+
           gh "${args[@]}"
       - name: Update major tag
-        if: ${{ inputs.update_major_tag && !inputs.prerelease }}
+        if: ${{ steps.release.outputs.update_major_tag == 'true' && steps.release.outputs.prerelease != 'true' }}
         env:
-          VERSION: ${{ inputs.version }}
+          VERSION: ${{ steps.release.outputs.version }}
         run: |
           MAJOR_TAG="${VERSION%%.*}"
           git config user.name "github-actions[bot]"

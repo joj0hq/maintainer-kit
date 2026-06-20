@@ -353,6 +353,14 @@ release tag は GitHub Actions の `Release` workflow から公開します。
 GitHub Release には `v0.1.0` のような full version tag を使います。`v0` major tag は、user workflow
 向けの moving compatibility tag として更新します。
 
+`Release` workflow は次の2通りで release を公開できます。
+
+- `v0.1.0` のような full version を指定して手動実行する
+- `v0.1.0` のような full version tag を push する
+
+どちらの場合も、workflow が check を実行し、GitHub Release を作成し、stable release では `v0` major tag
+を更新します。
+
 公開前に maintainer は次を確認します。
 
 ```bash

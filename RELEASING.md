@@ -6,6 +6,11 @@ Use full version tags, such as `v0.1.0`, for changelog entries and GitHub Releas
 tag, such as `v0`, in user-facing workflow examples when the next compatible release should be
 picked up automatically.
 
+The preferred release path is the `Release` workflow. It creates the immutable full version tag,
+creates the GitHub Release, and moves the compatible major tag for stable releases. As a fallback,
+pushing a full version tag such as `v0.1.0` also runs the same validation, creates the GitHub
+Release, and moves the major tag when the release is stable.
+
 ## Release Checklist
 
 1. Choose the next version.
@@ -31,6 +36,13 @@ git diff --exit-code dist
    - `update_major_tag`: true for stable releases
 7. Verify the created GitHub Release and the major tag.
 
+Alternative tag-push flow:
+
+1. Complete steps 1-5 above.
+2. Push a full version tag, for example `v0.1.0`.
+3. The `Release` workflow will validate the repository, create the GitHub Release, and move `v0`
+   for stable releases.
+
 ## Tags
 
 - `v0.1.0`, `v0.1.1`, etc. are immutable release tags.
@@ -38,6 +50,10 @@ git diff --exit-code dist
 
 Do not rewrite immutable release tags after publishing. If a release is bad, publish a new patch
 release and move the major tag to the fixed version.
+
+Do not create GitHub Releases manually from the GitHub UI unless the workflow is unavailable. The
+workflow is the source of truth because it verifies tests and the committed `dist/index.js` bundle
+before publishing.
 
 ## Generated Bundle
 

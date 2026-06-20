@@ -362,6 +362,14 @@ Release tags are published through the `Release` GitHub Actions workflow.
 Use full version tags such as `v0.1.0` for GitHub Releases. The `v0` major tag is a moving
 compatibility tag for user workflows.
 
+The `Release` workflow can publish releases in two ways:
+
+- manual dispatch with a full version such as `v0.1.0`
+- push of a full version tag such as `v0.1.0`
+
+In both cases, the workflow runs the checks, creates the GitHub Release, and moves the `v0` major
+tag for stable releases.
+
 Before publishing, maintainers should verify:
 
 ```bash
