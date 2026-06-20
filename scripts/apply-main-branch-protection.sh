@@ -16,18 +16,15 @@ case "$enforce_admins" in
 esac
 
 body_file="$(mktemp)"
-trap 'rm -f "$body_file"' EXIT
+response_file="$(mktemp)"
+trap 'rm -f "$body_file" "$response_file"' EXIT
 
 cat >"$body_file" <<JSON
 {
   "required_status_checks": {
     "strict": true,
-    "contexts": [],
-    "checks": [
-      {
-        "context": "test",
-        "app_id": 15368
-      }
+    "contexts": [
+      "test"
     ]
   },
   "enforce_admins": $enforce_admins,
@@ -51,13 +48,23 @@ if [[ -z "$token" ]]; then
   exit 1
 fi
 
-curl --fail -L -sS \
+http_status="$(curl -L -sS \
+  -o "$response_file" \
+  -w "%{http_code}" \
   -X PUT \
   -H "Accept: application/vnd.github+json" \
   -H "Authorization: Bearer ${token}" \
   -H "X-GitHub-Api-Version: 2022-11-28" \
   --data @"$body_file" \
-  "${api_url}/repos/${repository}/branches/${branch}/protection"
+  "${api_url}/repos/${repository}/branches/${branch}/protection")"
+
+cat "$response_file"
+
+if [[ "$http_status" != 2* ]]; then
+  echo
+  echo "GitHub API returned HTTP ${http_status}." >&2
+  exit 1
+fi
 
 echo
 echo "Applied branch protection to ${repository}:${branch}"
