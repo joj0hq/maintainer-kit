@@ -342,7 +342,12 @@ MIT License です。詳細は [LICENSE](LICENSE) を見てください。
 
 ## Release
 
-maintainer が release を公開する場合は、次を実行します。
+release tag は GitHub Actions の `Release` workflow から公開します。
+
+GitHub Release には `v0.1.0` のような full version tag を使います。`v0` major tag は、user workflow
+向けの moving compatibility tag として更新します。
+
+公開前に maintainer は次を確認します。
 
 ```bash
 pnpm install --frozen-lockfile
@@ -352,8 +357,7 @@ pnpm bundle
 git diff --exit-code dist
 ```
 
-その後、`v0` などの versioned release tag を作成して push します。GitHub Actions は指定された ref
-の repository contents から JavaScript action を実行するため、`dist/index.js` は commit しておきます。
+詳しい checklist は [RELEASING.md](RELEASING.md) を見てください。
 
 ## 開発
 

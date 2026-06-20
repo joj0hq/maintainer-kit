@@ -351,7 +351,12 @@ MIT License. See [LICENSE](LICENSE).
 
 ## Release
 
-For maintainers publishing a release:
+Release tags are published through the `Release` GitHub Actions workflow.
+
+Use full version tags such as `v0.1.0` for GitHub Releases. The `v0` major tag is a moving
+compatibility tag for user workflows.
+
+Before publishing, maintainers should verify:
 
 ```bash
 pnpm install --frozen-lockfile
@@ -361,8 +366,7 @@ pnpm bundle
 git diff --exit-code dist
 ```
 
-Then create and push a versioned release tag such as `v0`. Keep `dist/index.js` committed because
-GitHub Actions runs JavaScript actions from the repository contents at the selected ref.
+See [RELEASING.md](RELEASING.md) for the full release checklist.
 
 ## Development
 
