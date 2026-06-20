@@ -369,8 +369,12 @@ git diff --exit-code dist
 
 必要なもの:
 
-- Node.js 20+
+- local development 用の Node.js 20+
 - pnpm
+
+公開される GitHub Action は [`action.yml`](action.yml) で宣言している GitHub Actions の `node20`
+runtime で動きます。リポジトリの CI / release workflow では `actions/setup-node@v6` を使って
+Node.js 20 をインストールし、各種チェックを実行します。
 
 コマンド:
 

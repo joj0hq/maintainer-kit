@@ -10,8 +10,11 @@ Issue first so we can align on the direction.
 
 Requirements:
 
-- Node.js 20+
+- Node.js 20+ for local development
 - pnpm
+
+The published GitHub Action uses the GitHub Actions `node20` runtime. Repository workflows install
+Node.js 20 with `actions/setup-node@v6` before running checks.
 
 Install dependencies:
 

@@ -378,8 +378,12 @@ See [RELEASING.md](RELEASING.md) for the full release checklist.
 
 Requirements:
 
-- Node.js 20+
+- Node.js 20+ for local development
 - pnpm
+
+The published GitHub Action runs on the GitHub Actions `node20` runtime declared in
+[`action.yml`](action.yml). The repository CI and release workflows use `actions/setup-node@v6` to
+install Node.js 20 for checks.
 
 Commands:
 
