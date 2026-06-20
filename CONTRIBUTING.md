@@ -30,6 +30,26 @@ pnpm test
 pnpm bundle
 ```
 
+## Repository Protection
+
+The `main` branch should stay protected for OSS contributions:
+
+- require pull requests before merging
+- require the `test` status check to pass
+- require branches to be up to date before merging
+- require 1 approving review
+- dismiss stale approvals when new commits are pushed
+
+Maintainers can apply the expected branch protection with:
+
+```bash
+GITHUB_TOKEN=... scripts/apply-main-branch-protection.sh
+```
+
+The token must have repository administration write permission. By default, administrators can
+bypass the protection so a solo maintainer does not get locked out. Use `ENFORCE_ADMINS=true` when
+there is another maintainer who can approve owner-authored pull requests.
+
 ## Pull Requests
 
 - Keep PRs small and focused.

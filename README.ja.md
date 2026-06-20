@@ -338,6 +338,9 @@ API key、token、private repository content、sensitive な full diff は Issue
 
 詳しくは [CONTRIBUTING.md](CONTRIBUTING.md) を見てください。
 
+`main` branch は、CI 必須かつ 1 approval 必須の protected branch として運用する想定です。maintainer は
+[`scripts/apply-main-branch-protection.sh`](scripts/apply-main-branch-protection.sh) で想定設定を適用できます。
+
 ## Security
 
 security-sensitive な内容は public Issue に書かないでください。詳しくは [SECURITY.md](SECURITY.md) を見てください。

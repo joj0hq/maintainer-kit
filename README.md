@@ -347,6 +347,10 @@ Contributions are welcome while the project is small and still taking shape.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
 
+The `main` branch is intended to be protected with required CI and one approving review.
+Maintainers can apply the expected GitHub branch protection with
+[`scripts/apply-main-branch-protection.sh`](scripts/apply-main-branch-protection.sh).
+
 ## Security
 
 Please do not report security-sensitive issues in public Issues. See [SECURITY.md](SECURITY.md).
