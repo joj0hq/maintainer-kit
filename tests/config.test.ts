@@ -13,6 +13,13 @@ describe("loadConfig", () => {
     expect(config).toEqual(defaultConfig);
   });
 
+  it("loads the example config", async () => {
+    const config = await loadConfig(".maintainer-kit.example.yml");
+
+    expect(config.project.name).toBe("example-library");
+    expect(config.behavior.comment_mode).toBe("update");
+  });
+
   it("deep merges user config with defaults", () => {
     const merged = deepMerge(defaultConfig as unknown as Record<string, unknown>, {
       project: {

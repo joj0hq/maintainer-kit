@@ -9,7 +9,6 @@ export function buildIssueIntakePrompt(
   return {
     system: [
       "You are Maintainer Kit, a repository decision assistant for GitHub maintainers and product teams.",
-      "You are not an AI code reviewer.",
       "Focus on issue triage decision support: missing context, impact, owner/reviewer, and the next useful human action.",
       "Use the repository/product context when it is relevant.",
       "Be concrete, practical, and contributor-friendly.",
@@ -63,4 +62,3 @@ function repositoryContextForPrompt(config: MaintainerKitConfig): Record<string,
     roles: config.roles
   };
 }
-

@@ -11,7 +11,6 @@ export function buildPrDecisionPrompt(
   return {
     system: [
       "You are Maintainer Kit, a repository decision assistant for GitHub maintainers and product teams.",
-      "You are not an AI code reviewer.",
       "Do not provide line-by-line review comments.",
       "Do not provide exact code patches.",
       "Focus on decision support: missing context, impact, QA, reviewers, and the next useful human action.",
@@ -87,4 +86,3 @@ function repositoryContextForPrompt(config: MaintainerKitConfig): Record<string,
     roles: config.roles
   };
 }
-

@@ -28,19 +28,19 @@
 - [Privacy と安全性](#privacy-と安全性)
 - [ヘルプ](#ヘルプ)
 - [Contributing](#contributing)
+- [Security](#security)
 - [License](#license)
+- [Release](#release)
 - [開発](#開発)
 
 ## 状態
 
 このプロジェクトは early MVP development の段階です。
 
-source code は public ですが、GitHub Action として本番利用できる release にはまだ次が必要です。
+source code は public で、MIT License です。GitHub Action としての本番利用は、生成済みの
+`dist/index.js` bundle を含む versioned release tag 経由を想定しています。
 
-- Action runtime 用に生成された `dist/index.js` の commit
-- `v0` などの release tag
-- 明示的な open source license
-- contribution / security policy ファイル
+`main` は development / testing 用として扱ってください。
 
 以下の workflow 例は、最初の release を公開したあとの想定利用方法です。
 
@@ -312,7 +312,8 @@ privacy:
 
 ## プロジェクトの状態
 
-このリポジトリには、MVP Action の TypeScript source が含まれています。実際に GitHub Action として使う release tag には、`pnpm build` で生成される `dist/index.js` を含めてください。
+このリポジトリには、Action runtime 用の TypeScript source、tests、生成済みの `dist/index.js`
+bundle が含まれています。CI では、source 変更後に committed bundle が最新かどうかも確認します。
 
 ## ヘルプ
 
@@ -329,16 +330,30 @@ API key、token、private repository content、sensitive な full diff は Issue
 
 このプロジェクトはまだ小さく、方向性も固めている途中なので、contribution は歓迎です。
 
-専用の `CONTRIBUTING.md` ができるまでは、次を目安にしてください。
+詳しくは [CONTRIBUTING.md](CONTRIBUTING.md) を見てください。
 
-- 大きな behavior / API 変更の前には Issue を開く
-- PR は小さく focused にする
-- submit 前に `pnpm typecheck` と `pnpm test` を実行する
-- config、privacy、rendering、GitHub comment behavior を変更する場合は test を追加する
+## Security
+
+security-sensitive な内容は public Issue に書かないでください。詳しくは [SECURITY.md](SECURITY.md) を見てください。
 
 ## License
 
-まだ open source license は公開されていません。法的に open source として扱う、または外部 contribution を受け入れる前に `LICENSE` file を追加してください。
+MIT License です。詳細は [LICENSE](LICENSE) を見てください。
+
+## Release
+
+maintainer が release を公開する場合は、次を実行します。
+
+```bash
+pnpm install --frozen-lockfile
+pnpm typecheck
+pnpm test
+pnpm bundle
+git diff --exit-code dist
+```
+
+その後、`v0` などの versioned release tag を作成して push します。GitHub Actions は指定された ref
+の repository contents から JavaScript action を実行するため、`dist/index.js` は commit しておきます。
 
 ## 開発
 

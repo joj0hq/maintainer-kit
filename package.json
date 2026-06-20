@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Turn GitHub Issues and Pull Requests into actionable Decision Briefs.",
+  "license": "MIT",
   "engines": {
     "node": ">=20"
   },

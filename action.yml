@@ -1,5 +1,10 @@
 name: Maintainer Kit
 description: Turn GitHub Issues and Pull Requests into actionable Decision Briefs.
+author: joj0hq
+
+branding:
+  icon: clipboard
+  color: blue
 
 inputs:
   github-token:

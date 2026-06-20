@@ -29,19 +29,19 @@ It helps humans answer the questions that often slow down maintenance work:
 - [Privacy And Safety](#privacy-and-safety)
 - [Getting Help](#getting-help)
 - [Contributing](#contributing)
+- [Security](#security)
 - [License](#license)
+- [Release](#release)
 - [Development](#development)
 
 ## Status
 
 This project is in early MVP development.
 
-The source code is public, but a production-ready GitHub Action release still needs:
+The source code is public and MIT-licensed. Production GitHub Action usage is intended through
+versioned release tags that include the generated `dist/index.js` bundle.
 
-- a generated `dist/index.js` bundle committed for Action runtime use
-- a release tag such as `v0`
-- an explicit open source license
-- contribution and security policy files
+Use `main` only for development and testing.
 
 The workflow examples below show the intended public usage after the first release is published.
 
@@ -320,8 +320,8 @@ The action does not:
 
 ## Project Status
 
-This repository currently contains the TypeScript source for the MVP Action. Release tags for real
-GitHub Action usage should include the generated `dist/index.js` from `pnpm build`.
+This repository contains the TypeScript source, tests, and generated `dist/index.js` bundle for the
+Action runtime. CI verifies that the committed bundle stays in sync with source changes.
 
 ## Getting Help
 
@@ -339,17 +339,30 @@ issues.
 
 Contributions are welcome while the project is small and still taking shape.
 
-Until a dedicated `CONTRIBUTING.md` exists:
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-- open an Issue before large behavior or API changes
-- keep PRs focused and small
-- run `pnpm typecheck` and `pnpm test` before submitting
-- include tests for config, privacy, rendering, or GitHub comment behavior when those areas change
+## Security
+
+Please do not report security-sensitive issues in public Issues. See [SECURITY.md](SECURITY.md).
 
 ## License
 
-No open source license has been published yet. Add a `LICENSE` file before treating this project as
-legally open source or accepting external contributions.
+MIT License. See [LICENSE](LICENSE).
+
+## Release
+
+For maintainers publishing a release:
+
+```bash
+pnpm install --frozen-lockfile
+pnpm typecheck
+pnpm test
+pnpm bundle
+git diff --exit-code dist
+```
+
+Then create and push a versioned release tag such as `v0`. Keep `dist/index.js` committed because
+GitHub Actions runs JavaScript actions from the repository contents at the selected ref.
 
 ## Development
 

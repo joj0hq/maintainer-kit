@@ -15,7 +15,8 @@ describe("renderIssueIntakeBrief", () => {
       suggestedLabels: ["bug"],
       recommendedOwnerOrReviewer: [{ role: "QA", reason: "Needs reproduction coverage" }],
       suggestedNextAction: "Ask for steps",
-      suggestedResponseDraft: "Could you share reproduction steps?"
+      suggestedResponseDraft: "Could you share reproduction steps?",
+      confidence: "medium"
     });
 
     expect(output).toContain("<!-- maintainer-kit:issue-intake-brief -->");

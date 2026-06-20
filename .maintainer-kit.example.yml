@@ -23,8 +23,12 @@ model:
   max_input_tokens: 12000
 
 metrics:
-  primary: []
-  secondary: []
+  primary:
+    - weekly_active_users
+    - task_completion_rate
+  secondary:
+    - trial_conversion
+    - report_export_rate
 
 critical_flows:
   - install
