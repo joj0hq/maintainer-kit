@@ -20,7 +20,27 @@ export const maintainerKitConfigSchema = z.object({
     .object({
       issue_intake_brief: z.boolean(),
       pr_decision_brief: z.boolean(),
+      issue_reproduction_pr: z.boolean(),
       release_readiness_brief: z.boolean()
+    })
+    .strict(),
+  agent: z
+    .object({
+      issue_reproduction_pr: z
+        .object({
+          trigger_label: z.string(),
+          trigger_comment: z.string(),
+          branch_prefix: z.string(),
+          allowed_paths: stringArraySchema,
+          blocked_paths: stringArraySchema,
+          context_paths: stringArraySchema,
+          max_files_changed: z.number().int().positive(),
+          max_file_bytes: z.number().int().positive(),
+          max_total_bytes: z.number().int().positive(),
+          max_context_files: z.number().int().positive(),
+          max_context_chars: z.number().int().positive()
+        })
+        .strict()
     })
     .strict(),
   behavior: z

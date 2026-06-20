@@ -29922,6 +29922,426 @@ function wrappy (fn, cb) {
 
 /***/ }),
 
+/***/ 5295:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ensureCleanWorkingTree = ensureCleanWorkingTree;
+exports.commitAndPushDraftBranch = commitAndPushDraftBranch;
+const node_child_process_1 = __nccwpck_require__(1421);
+const node_util_1 = __nccwpck_require__(7975);
+const execFileAsync = (0, node_util_1.promisify)(node_child_process_1.execFile);
+async function ensureCleanWorkingTree() {
+    const result = await runGit(["status", "--porcelain"]);
+    if (result.stdout.trim()) {
+        throw new Error("Working tree is not clean. Refusing to create an issue reproduction PR.");
+    }
+}
+async function commitAndPushDraftBranch(options) {
+    await runGit(["config", "user.name", "github-actions[bot]"]);
+    await runGit(["config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"]);
+    await runGit(["checkout", "-b", options.branchName]);
+    await runGit(["add", "--", ...options.files]);
+    await runGit(["diff", "--cached", "--check"]);
+    await runGit(["commit", "-m", options.commitMessage]);
+    await runGit(["push", "origin", `HEAD:${options.branchName}`]);
+}
+async function runGit(args) {
+    try {
+        return await execFileAsync("git", args, {
+            encoding: "utf8",
+            maxBuffer: 1024 * 1024 * 10
+        });
+    }
+    catch (error) {
+        if (isExecError(error)) {
+            throw new Error(`git ${args.join(" ")} failed: ${error.stderr || error.message}`);
+        }
+        throw error;
+    }
+}
+function isExecError(error) {
+    return error instanceof Error;
+}
+
+
+/***/ }),
+
+/***/ 1021:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.getIssueReproductionTrigger = getIssueReproductionTrigger;
+const trustedCommentAuthorAssociations = new Set(["OWNER", "MEMBER", "COLLABORATOR"]);
+function getIssueReproductionTrigger(context, config) {
+    if (!config.features.issue_reproduction_pr) {
+        return { triggered: false, reason: "issue reproduction PR feature is disabled" };
+    }
+    if (isPullRequestIssue(context.payload.issue)) {
+        return { triggered: false, reason: "issue_comment target is a pull request" };
+    }
+    if (context.eventName === "issues" && context.payload.action === "labeled") {
+        return getLabelTrigger(context, config);
+    }
+    if (context.eventName === "issue_comment" && context.payload.action === "created") {
+        return getCommentTrigger(context, config);
+    }
+    return { triggered: false, reason: "unsupported event for issue reproduction PR" };
+}
+function getLabelTrigger(context, config) {
+    const expectedLabel = config.agent.issue_reproduction_pr.trigger_label;
+    const labelName = context.payload.label?.name;
+    if (labelName !== expectedLabel) {
+        return { triggered: false, reason: `label is not ${expectedLabel}` };
+    }
+    return { triggered: true, source: "label", reason: `label ${expectedLabel} was applied` };
+}
+function getCommentTrigger(context, config) {
+    const expectedCommand = config.agent.issue_reproduction_pr.trigger_comment;
+    const body = String(context.payload.comment?.body ?? "").trim();
+    const authorAssociation = String(context.payload.comment?.author_association ?? "");
+    if (!body.startsWith(expectedCommand)) {
+        return { triggered: false, reason: `comment does not start with ${expectedCommand}` };
+    }
+    if (!trustedCommentAuthorAssociations.has(authorAssociation)) {
+        return {
+            triggered: false,
+            reason: `comment author association ${authorAssociation || "unknown"} is not trusted`
+        };
+    }
+    return {
+        triggered: true,
+        source: "comment",
+        reason: `trusted comment command ${expectedCommand} was posted`
+    };
+}
+function isPullRequestIssue(issue) {
+    return Boolean(issue && typeof issue === "object" && "pull_request" in issue);
+}
+
+
+/***/ }),
+
+/***/ 8783:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.validateGeneratedFiles = validateGeneratedFiles;
+exports.isPathAllowed = isPathAllowed;
+exports.normalizeRepositoryPath = normalizeRepositoryPath;
+const node_buffer_1 = __nccwpck_require__(4573);
+const node_fs_1 = __nccwpck_require__(3024);
+const node_path_1 = __nccwpck_require__(6760);
+const node_process_1 = __nccwpck_require__(1708);
+const matchGlob_js_1 = __nccwpck_require__(895);
+function validateGeneratedFiles(files, options) {
+    if (files.length === 0) {
+        throw new Error("Issue reproduction PR generation returned no files.");
+    }
+    if (files.length > options.maxFilesChanged) {
+        throw new Error(`Issue reproduction PR attempted to change ${files.length} files, but max_files_changed is ${options.maxFilesChanged}.`);
+    }
+    const seenPaths = new Set();
+    let totalBytes = 0;
+    return files.map((file) => {
+        const path = normalizeRepositoryPath(file.path);
+        if (seenPaths.has(path)) {
+            throw new Error(`Issue reproduction PR returned duplicate file path: ${path}`);
+        }
+        seenPaths.add(path);
+        if (!isPathAllowed(path, options.allowedPaths, options.blockedPaths)) {
+            throw new Error(`Issue reproduction PR attempted to write outside allowed paths: ${path}`);
+        }
+        if (!options.allowExistingFiles && (0, node_fs_1.existsSync)((0, node_path_1.join)(options.root ?? (0, node_process_1.cwd)(), path))) {
+            throw new Error(`Issue reproduction PR attempted to overwrite an existing file: ${path}`);
+        }
+        const fileBytes = node_buffer_1.Buffer.byteLength(file.content, "utf8");
+        if (fileBytes > options.maxFileBytes) {
+            throw new Error(`Issue reproduction PR generated ${path} with ${fileBytes} bytes, but max_file_bytes is ${options.maxFileBytes}.`);
+        }
+        totalBytes += fileBytes;
+        if (totalBytes > options.maxTotalBytes) {
+            throw new Error(`Issue reproduction PR generated ${totalBytes} bytes, but max_total_bytes is ${options.maxTotalBytes}.`);
+        }
+        return {
+            ...file,
+            path
+        };
+    });
+}
+function isPathAllowed(path, allowedPaths, blockedPaths) {
+    const normalizedPath = normalizeRepositoryPath(path);
+    if (blockedPaths.some((pattern) => (0, matchGlob_js_1.matchGlob)(normalizedPath, pattern))) {
+        return false;
+    }
+    return allowedPaths.some((pattern) => (0, matchGlob_js_1.matchGlob)(normalizedPath, pattern));
+}
+function normalizeRepositoryPath(path) {
+    const normalized = path.replaceAll("\\", "/").replace(/^\.\//, "");
+    if (!normalized || normalized.startsWith("/") || normalized.includes("\0")) {
+        throw new Error(`Invalid repository path: ${path}`);
+    }
+    const segments = normalized.split("/");
+    if (segments.some((segment) => segment === "" || segment === "." || segment === "..")) {
+        throw new Error(`Invalid repository path: ${path}`);
+    }
+    return normalized;
+}
+
+
+/***/ }),
+
+/***/ 7535:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.collectRepositoryContext = collectRepositoryContext;
+const promises_1 = __nccwpck_require__(1455);
+const node_path_1 = __nccwpck_require__(6760);
+const node_process_1 = __nccwpck_require__(1708);
+const matchGlob_js_1 = __nccwpck_require__(895);
+const pathGuards_js_1 = __nccwpck_require__(8783);
+const skippedDirectories = new Set([
+    ".git",
+    ".hg",
+    ".svn",
+    "node_modules",
+    "dist",
+    "build",
+    "coverage",
+    ".next",
+    ".turbo",
+    ".cache"
+]);
+const skippedExtensions = new Set([
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".webp",
+    ".pdf",
+    ".zip",
+    ".gz",
+    ".tar",
+    ".mov",
+    ".mp4"
+]);
+async function collectRepositoryContext(config, root = (0, node_process_1.cwd)()) {
+    const agentConfig = config.agent.issue_reproduction_pr;
+    const allFiles = await listRepositoryFiles(root);
+    const fileIndex = allFiles
+        .filter((path) => !isExcluded(path, config.privacy.exclude_files))
+        .filter((path) => !isBlocked(path, agentConfig.blocked_paths))
+        .filter((path) => isAllowedContext(path, agentConfig.context_paths));
+    const files = [];
+    let totalChars = 0;
+    for (const path of fileIndex) {
+        if (files.length >= agentConfig.max_context_files) {
+            break;
+        }
+        const absolutePath = (0, node_path_1.join)(root, path);
+        const fileStat = await (0, promises_1.stat)(absolutePath);
+        if (fileStat.size > agentConfig.max_file_bytes) {
+            continue;
+        }
+        const content = await (0, promises_1.readFile)(absolutePath, "utf8");
+        const nextTotalChars = totalChars + content.length;
+        if (nextTotalChars > agentConfig.max_context_chars) {
+            break;
+        }
+        files.push({ path, content });
+        totalChars = nextTotalChars;
+    }
+    return {
+        fileIndex,
+        files
+    };
+}
+async function listRepositoryFiles(root) {
+    const output = [];
+    async function visit(directory) {
+        const entries = await (0, promises_1.readdir)(directory, { withFileTypes: true });
+        for (const entry of entries) {
+            if (entry.isDirectory()) {
+                if (!skippedDirectories.has(entry.name)) {
+                    await visit((0, node_path_1.join)(directory, entry.name));
+                }
+                continue;
+            }
+            if (!entry.isFile()) {
+                continue;
+            }
+            const path = (0, pathGuards_js_1.normalizeRepositoryPath)((0, node_path_1.relative)(root, (0, node_path_1.join)(directory, entry.name)));
+            if (isLikelyBinary(path)) {
+                continue;
+            }
+            output.push(path);
+        }
+    }
+    await visit(root);
+    return output.sort();
+}
+function isAllowedContext(path, contextPaths) {
+    return contextPaths.some((pattern) => (0, matchGlob_js_1.matchGlob)(path, pattern));
+}
+function isBlocked(path, blockedPaths) {
+    return blockedPaths.some((pattern) => (0, matchGlob_js_1.matchGlob)(path, pattern));
+}
+function isExcluded(path, excludeFiles) {
+    return excludeFiles.some((pattern) => (0, matchGlob_js_1.matchGlob)(path, pattern));
+}
+function isLikelyBinary(path) {
+    const lowerPath = path.toLowerCase();
+    return [...skippedExtensions].some((extension) => lowerPath.endsWith(extension));
+}
+
+
+/***/ }),
+
+/***/ 382:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.runIssueReproductionPr = runIssueReproductionPr;
+const promises_1 = __nccwpck_require__(1455);
+const node_path_1 = __nccwpck_require__(6760);
+const client_js_1 = __nccwpck_require__(9158);
+const buildIssueReproductionPrPrompt_js_1 = __nccwpck_require__(1728);
+const issueReproductionPrSchema_js_1 = __nccwpck_require__(1466);
+const publishComment_js_1 = __nccwpck_require__(1098);
+const redactSecrets_js_1 = __nccwpck_require__(6071);
+const renderIssueReproductionPr_js_1 = __nccwpck_require__(2588);
+const gitDraftPr_js_1 = __nccwpck_require__(5295);
+const pathGuards_js_1 = __nccwpck_require__(8783);
+const repositoryContext_js_1 = __nccwpck_require__(7535);
+async function runIssueReproductionPr(options) {
+    const repositoryContext = await (0, repositoryContext_js_1.collectRepositoryContext)(options.config);
+    const prompt = (0, buildIssueReproductionPrPrompt_js_1.buildIssueReproductionPrPrompt)(options.config, options.issue, repositoryContext);
+    const draft = await (0, client_js_1.generateStructuredJson)({
+        apiKey: options.openAiApiKey,
+        model: options.model,
+        prompt,
+        schema: issueReproductionPrSchema_js_1.issueReproductionPrSchema
+    });
+    if (!draft.shouldCreatePr) {
+        options.logger.info(`Issue reproduction PR skipped: ${draft.skipReason}`);
+        return {
+            created: false,
+            skippedReason: draft.skipReason,
+            commentResult: "skipped",
+            files: []
+        };
+    }
+    const files = validateAndPrepareFiles(draft.files, options.config);
+    const generatedPaths = files.map((file) => file.path);
+    const branchName = buildBranchName(options.config.agent.issue_reproduction_pr.branch_prefix, options.issue.number);
+    const title = (0, renderIssueReproductionPr_js_1.buildIssueReproductionPrTitle)(options.issue, options.config.language.output);
+    const body = (0, renderIssueReproductionPr_js_1.renderIssueReproductionPrBody)({
+        draft,
+        issue: options.issue,
+        generatedFiles: generatedPaths,
+        language: options.config.language.output
+    });
+    if (options.dryRun) {
+        options.logger.info(`Dry run: would create branch ${branchName}`);
+        options.logger.info(`Dry run: would create draft PR "${title}"`);
+        options.logger.info(body);
+        return {
+            created: false,
+            skippedReason: "dry-run",
+            commentResult: "dry-run",
+            files: generatedPaths
+        };
+    }
+    await (0, gitDraftPr_js_1.ensureCleanWorkingTree)();
+    await writeGeneratedFiles(files);
+    await (0, gitDraftPr_js_1.commitAndPushDraftBranch)({
+        branchName,
+        files: generatedPaths,
+        commitMessage: `Add reproduction for issue #${options.issue.number}`
+    });
+    const pullRequest = await options.octokit.rest.pulls.create({
+        owner: options.repository.owner,
+        repo: options.repository.repo,
+        title,
+        head: branchName,
+        base: options.defaultBranch || "main",
+        body,
+        draft: true,
+        maintainer_can_modify: true
+    });
+    const pullRequestUrl = String(pullRequest.data.html_url);
+    const commentResult = await (0, publishComment_js_1.publishComment)({
+        octokit: options.octokit,
+        repository: options.repository,
+        issueNumber: options.issue.number,
+        marker: renderIssueReproductionPr_js_1.ISSUE_REPRODUCTION_PR_MARKER,
+        body: (0, renderIssueReproductionPr_js_1.renderIssueReproductionPrComment)({
+            draft,
+            prUrl: pullRequestUrl,
+            language: options.config.language.output
+        }),
+        commentMode: options.commentMode,
+        dryRun: false,
+        logger: options.logger
+    });
+    return {
+        created: true,
+        pullRequestUrl,
+        commentResult,
+        files: generatedPaths
+    };
+}
+function validateAndPrepareFiles(files, config) {
+    const agentConfig = config.agent.issue_reproduction_pr;
+    const preparedFiles = (0, pathGuards_js_1.validateGeneratedFiles)(files, {
+        allowedPaths: agentConfig.allowed_paths,
+        blockedPaths: agentConfig.blocked_paths,
+        maxFilesChanged: agentConfig.max_files_changed,
+        maxFileBytes: agentConfig.max_file_bytes,
+        maxTotalBytes: agentConfig.max_total_bytes
+    });
+    for (const file of preparedFiles) {
+        if (config.privacy.redact_secrets && (0, redactSecrets_js_1.redactSecrets)(file.content) !== file.content) {
+            throw new Error(`Issue reproduction PR generated content that looks like a secret: ${file.path}`);
+        }
+    }
+    return preparedFiles;
+}
+async function writeGeneratedFiles(files) {
+    for (const file of files) {
+        await (0, promises_1.mkdir)((0, node_path_1.dirname)(file.path), { recursive: true });
+        await (0, promises_1.writeFile)(file.path, file.content, "utf8");
+    }
+}
+function buildBranchName(branchPrefix, issueNumber) {
+    const safePrefix = sanitizeBranchSegment(branchPrefix).replace(/\/+$/, "") || "maintainer-kit";
+    const suffix = Date.now().toString(36);
+    return `${safePrefix}/issue-${issueNumber}-repro-${suffix}`;
+}
+function sanitizeBranchSegment(value) {
+    return value
+        .trim()
+        .replaceAll("\\", "/")
+        .replace(/[^A-Za-z0-9._/-]+/g, "-")
+        .replace(/\.\.+/g, ".")
+        .replace(/\/+/g, "/")
+        .replace(/^[-/.]+|[-/.]+$/g, "");
+}
+
+
+/***/ }),
+
 /***/ 9158:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -30043,6 +30463,79 @@ function repositoryContextForPrompt(config) {
         sensitive_areas: config.sensitive_areas,
         roles: config.roles
     };
+}
+
+
+/***/ }),
+
+/***/ 1728:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.buildIssueReproductionPrPrompt = buildIssueReproductionPrPrompt;
+function buildIssueReproductionPrPrompt(config, issue, repositoryContext) {
+    const agentConfig = config.agent.issue_reproduction_pr;
+    return {
+        system: [
+            "You are Maintainer Kit, a cautious coding agent for maintainers.",
+            "Your task is to turn a maintainer-approved Issue into a small draft PR that captures a reproduction or failing regression test.",
+            "Prefer adding a new focused test file. If an executable test cannot be inferred safely, add a minimal reproduction artifact or example file only when it is useful.",
+            "Do not fix the reported bug. Do not refactor unrelated code. Do not update dependencies. Do not edit CI, secrets, package metadata, or generated bundles.",
+            "Use only the allowed paths. If the issue is too vague or unsafe, set shouldCreatePr to false and explain why.",
+            "Generated files must be complete file contents, not patches, not Markdown code fences, and not explanations.",
+            "Avoid hallucinating repository APIs. Use repository context when available, and say when confidence is low.",
+            languageInstruction(config),
+            "Return only valid JSON matching the requested schema. Do not return Markdown."
+        ].join("\n"),
+        user: JSON.stringify({
+            task: "Create a small issue reproduction draft PR JSON object.",
+            outputSchema: {
+                shouldCreatePr: "boolean",
+                skipReason: "string",
+                title: "string",
+                summary: "string",
+                evidenceUsed: ["string"],
+                files: [{ path: "string", content: "string", purpose: "string" }],
+                validationNotes: ["string"],
+                maintainerNotes: ["string"],
+                confidence: "low | medium | high"
+            },
+            outputLanguage: config.language.output,
+            guardrails: {
+                allowedPaths: agentConfig.allowed_paths,
+                blockedPaths: agentConfig.blocked_paths,
+                maxFilesChanged: agentConfig.max_files_changed,
+                maxFileBytes: agentConfig.max_file_bytes,
+                maxTotalBytes: agentConfig.max_total_bytes
+            },
+            repositoryContext: {
+                project: config.project,
+                critical_flows: config.critical_flows,
+                sensitive_areas: config.sensitive_areas,
+                fileIndex: repositoryContext.fileIndex,
+                files: repositoryContext.files
+            },
+            issue: {
+                number: issue.number,
+                title: issue.title,
+                body: issue.body,
+                author: issue.author,
+                labels: issue.labels,
+                state: issue.state,
+                htmlUrl: issue.htmlUrl,
+                createdAt: issue.createdAt,
+                updatedAt: issue.updatedAt
+            }
+        }, null, 2)
+    };
+}
+function languageInstruction(config) {
+    if (config.language.output === "ja") {
+        return "Write all user-facing string fields in Japanese. Keep code, file paths, package names, config keys, and labels unchanged when that is clearer.";
+    }
+    return "Write all user-facing string fields in English.";
 }
 
 
@@ -30184,6 +30677,37 @@ exports.issueIntakeBriefSchema = zod_1.z
 
 /***/ }),
 
+/***/ 1466:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.issueReproductionPrSchema = void 0;
+const zod_1 = __nccwpck_require__(6827);
+exports.issueReproductionPrSchema = zod_1.z
+    .object({
+    shouldCreatePr: zod_1.z.boolean(),
+    skipReason: zod_1.z.string(),
+    title: zod_1.z.string(),
+    summary: zod_1.z.string(),
+    evidenceUsed: zod_1.z.array(zod_1.z.string()),
+    files: zod_1.z.array(zod_1.z
+        .object({
+        path: zod_1.z.string(),
+        content: zod_1.z.string(),
+        purpose: zod_1.z.string()
+    })
+        .strict()),
+    validationNotes: zod_1.z.array(zod_1.z.string()),
+    maintainerNotes: zod_1.z.array(zod_1.z.string()),
+    confidence: zod_1.z.enum(["low", "medium", "high"])
+})
+    .strict();
+
+
+/***/ }),
+
 /***/ 1337:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
@@ -30238,7 +30762,50 @@ exports.defaultConfig = {
     features: {
         issue_intake_brief: true,
         pr_decision_brief: true,
+        issue_reproduction_pr: false,
         release_readiness_brief: false
+    },
+    agent: {
+        issue_reproduction_pr: {
+            trigger_label: "maintainer-kit:repro",
+            trigger_comment: "/maintainer-kit repro",
+            branch_prefix: "maintainer-kit",
+            allowed_paths: [
+                "tests/**",
+                "test/**",
+                "__tests__/**",
+                "fixtures/**",
+                "docs/**",
+                "examples/**"
+            ],
+            blocked_paths: [
+                ".github/**",
+                ".env",
+                ".env.*",
+                "package.json",
+                "pnpm-lock.yaml",
+                "package-lock.json",
+                "yarn.lock"
+            ],
+            context_paths: [
+                "package.json",
+                "tsconfig.json",
+                "vitest.config.*",
+                "jest.config.*",
+                "tests/**",
+                "test/**",
+                "__tests__/**",
+                "fixtures/**",
+                "docs/**",
+                "examples/**",
+                "src/**"
+            ],
+            max_files_changed: 3,
+            max_file_bytes: 20000,
+            max_total_bytes: 40000,
+            max_context_files: 40,
+            max_context_chars: 60000
+        }
     },
     behavior: {
         comment_mode: "update",
@@ -30386,7 +30953,27 @@ exports.maintainerKitConfigSchema = zod_1.z.object({
         .object({
         issue_intake_brief: zod_1.z.boolean(),
         pr_decision_brief: zod_1.z.boolean(),
+        issue_reproduction_pr: zod_1.z.boolean(),
         release_readiness_brief: zod_1.z.boolean()
+    })
+        .strict(),
+    agent: zod_1.z
+        .object({
+        issue_reproduction_pr: zod_1.z
+            .object({
+            trigger_label: zod_1.z.string(),
+            trigger_comment: zod_1.z.string(),
+            branch_prefix: zod_1.z.string(),
+            allowed_paths: stringArraySchema,
+            blocked_paths: stringArraySchema,
+            context_paths: stringArraySchema,
+            max_files_changed: zod_1.z.number().int().positive(),
+            max_file_bytes: zod_1.z.number().int().positive(),
+            max_total_bytes: zod_1.z.number().int().positive(),
+            max_context_files: zod_1.z.number().int().positive(),
+            max_context_chars: zod_1.z.number().int().positive()
+        })
+            .strict()
     })
         .strict(),
     behavior: zod_1.z
@@ -30443,6 +31030,7 @@ exports.maintainerKitConfigSchema = zod_1.z.object({
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getEventType = getEventType;
 exports.isSupportedIssueEvent = isSupportedIssueEvent;
+exports.isSupportedIssueReproductionEvent = isSupportedIssueReproductionEvent;
 exports.isSupportedPullRequestEvent = isSupportedPullRequestEvent;
 exports.getRepository = getRepository;
 function getEventType(context) {
@@ -30451,6 +31039,12 @@ function getEventType(context) {
 }
 function isSupportedIssueEvent(context) {
     return context.eventName === "issues" && ["opened", "edited"].includes(context.payload.action);
+}
+function isSupportedIssueReproductionEvent(context) {
+    if (context.eventName === "issues") {
+        return context.payload.action === "labeled";
+    }
+    return context.eventName === "issue_comment" && context.payload.action === "created";
 }
 function isSupportedPullRequestEvent(context) {
     return (context.eventName === "pull_request" &&
@@ -30700,6 +31294,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(6966));
 const github = __importStar(__nccwpck_require__(4903));
+const issueReproductionTrigger_js_1 = __nccwpck_require__(1021);
+const runIssueReproductionPr_js_1 = __nccwpck_require__(382);
 const client_js_1 = __nccwpck_require__(9158);
 const buildIssueIntakePrompt_js_1 = __nccwpck_require__(1520);
 const buildPrDecisionPrompt_js_1 = __nccwpck_require__(1427);
@@ -30728,13 +31324,40 @@ async function run() {
     const configPath = core.getInput("config-path") || ".maintainer-kit.yml";
     const loadedConfig = await (0, loadConfig_js_1.loadConfig)(configPath);
     const config = withOutputLanguage(loadedConfig, core.getInput("output-language") || loadedConfig.language.output);
-    if (!(0, context_js_1.isSupportedIssueEvent)(actionContext) && !(0, context_js_1.isSupportedPullRequestEvent)(actionContext)) {
+    if (!(0, context_js_1.isSupportedIssueEvent)(actionContext) &&
+        !(0, context_js_1.isSupportedIssueReproductionEvent)(actionContext) &&
+        !(0, context_js_1.isSupportedPullRequestEvent)(actionContext)) {
         core.info(`Unsupported event type: ${eventType}. maintainer-kit did not run.`);
         return;
     }
     const executionMode = parseExecutionMode(core.getInput("mode") || "suggest");
     const commentMode = parseCommentMode(core.getInput("comment-mode") || config.behavior.comment_mode);
     const dryRun = executionMode === "dry-run" || config.behavior.dry_run;
+    if ((0, context_js_1.isSupportedIssueReproductionEvent)(actionContext)) {
+        const trigger = (0, issueReproductionTrigger_js_1.getIssueReproductionTrigger)(actionContext, config);
+        if (trigger.triggered) {
+            const githubToken = getRequiredInput("github-token");
+            const openAiApiKey = getRequiredInput("openai-api-key");
+            const model = core.getInput("model") || config.model.name || undefined;
+            const octokit = github.getOctokit(githubToken);
+            await runIssueReproductionPrHandler({
+                octokit,
+                context: actionContext,
+                config,
+                openAiApiKey,
+                model,
+                commentMode,
+                dryRun,
+                eventType,
+                startedAt
+            });
+            return;
+        }
+        if (!(0, context_js_1.isSupportedIssueEvent)(actionContext)) {
+            core.info(`Issue reproduction PR was not triggered: ${trigger.reason}`);
+            return;
+        }
+    }
     const githubToken = getRequiredInput("github-token");
     const openAiApiKey = getRequiredInput("openai-api-key");
     const model = core.getInput("model") || config.model.name || undefined;
@@ -30793,6 +31416,30 @@ async function runIssueBrief(options) {
         eventType: options.eventType,
         feature: "issue_intake_brief",
         commentResult,
+        durationMs: Date.now() - options.startedAt
+    });
+}
+async function runIssueReproductionPrHandler(options) {
+    const issue = applyIssuePrivacy((0, getIssueContext_js_1.getIssueContext)(options.context), options.config);
+    const result = await (0, runIssueReproductionPr_js_1.runIssueReproductionPr)({
+        octokit: options.octokit,
+        repository: issue.repository,
+        issue,
+        config: options.config,
+        openAiApiKey: options.openAiApiKey,
+        model: options.model,
+        commentMode: options.commentMode,
+        dryRun: options.dryRun,
+        logger,
+        defaultBranch: getDefaultBranch(options.context)
+    });
+    (0, usageLog_js_1.logUsage)(logger, {
+        eventType: options.eventType,
+        feature: "issue_reproduction_pr",
+        commentResult: result.commentResult,
+        created: result.created,
+        files: result.files.length,
+        skippedReason: result.skippedReason,
         durationMs: Date.now() - options.startedAt
     });
 }
@@ -30894,6 +31541,9 @@ function parseOutputLanguage(value) {
     }
     throw new Error(`Invalid output-language: ${value}. Supported values: en, ja.`);
 }
+function getDefaultBranch(context) {
+    return context.payload.repository?.default_branch ?? "main";
+}
 function getRequiredInput(name) {
     const value = core.getInput(name);
     if (!value) {
@@ -30930,6 +31580,9 @@ function logUsage(logger, usage) {
             diffLinesAfterTruncation: usage.diffLinesAfterTruncation,
             diffWasTruncated: usage.diffWasTruncated,
             commentResult: usage.commentResult,
+            created: usage.created,
+            files: usage.files,
+            skippedReason: usage.skippedReason,
             durationMs: usage.durationMs
         }
     }));
@@ -31277,6 +31930,98 @@ ${(0, markdown_js_1.renderQuotedDraft)(brief.suggestedResponseDraft, labels.notS
 
 /***/ }),
 
+/***/ 2588:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ISSUE_REPRODUCTION_PR_MARKER = void 0;
+exports.buildIssueReproductionPrTitle = buildIssueReproductionPrTitle;
+exports.renderIssueReproductionPrBody = renderIssueReproductionPrBody;
+exports.renderIssueReproductionPrComment = renderIssueReproductionPrComment;
+const markdown_js_1 = __nccwpck_require__(9178);
+exports.ISSUE_REPRODUCTION_PR_MARKER = "<!-- maintainer-kit:issue-reproduction-pr -->";
+const copy = {
+    en: {
+        titlePrefix: "Add reproduction for issue",
+        bodyTitle: "Maintainer Kit Reproduction PR",
+        whatThisDoes: "What This PR Does",
+        issue: "Issue",
+        generatedFiles: "Generated Files",
+        evidenceUsed: "Evidence Used",
+        validation: "Validation",
+        maintainerNotes: "Maintainer Notes",
+        notRun: "Maintainer Kit did not run project validation commands in this MVP.",
+        noItems: "None provided.",
+        commentIntro: "Created a draft reproduction PR:",
+        commentNote: "This PR is intentionally small and should capture a reproduction or failing regression case, not a full fix."
+    },
+    ja: {
+        titlePrefix: "Issue の再現ケースを追加",
+        bodyTitle: "Maintainer Kit 再現 PR",
+        whatThisDoes: "この PR が行うこと",
+        issue: "Issue",
+        generatedFiles: "生成したファイル",
+        evidenceUsed: "根拠にした情報",
+        validation: "検証",
+        maintainerNotes: "メンテナー向けメモ",
+        notRun: "この MVP では Maintainer Kit はプロジェクトの検証コマンドを実行していません。",
+        noItems: "特になし。",
+        commentIntro: "draft の再現 PR を作成しました:",
+        commentNote: "この PR は意図的に小さく、完全な修正ではなく再現ケースまたは failing regression case を残すためのものです。"
+    }
+};
+function buildIssueReproductionPrTitle(issue, language) {
+    const labels = copy[language];
+    return `[maintainer-kit] ${labels.titlePrefix} #${issue.number}`;
+}
+function renderIssueReproductionPrBody(options) {
+    const language = options.language ?? "en";
+    const labels = copy[language];
+    const { draft, issue } = options;
+    return `## ${labels.bodyTitle}
+
+### ${labels.whatThisDoes}
+
+${(0, markdown_js_1.sanitizeMarkdownText)(draft.summary) || labels.noItems}
+
+### ${labels.issue}
+
+Related: #${issue.number}
+
+### ${labels.generatedFiles}
+
+${(0, markdown_js_1.renderBulletList)(options.generatedFiles, labels.noItems)}
+
+### ${labels.evidenceUsed}
+
+${(0, markdown_js_1.renderBulletList)(draft.evidenceUsed, labels.noItems)}
+
+### ${labels.validation}
+
+${(0, markdown_js_1.renderBulletList)(draft.validationNotes.length > 0 ? draft.validationNotes : [labels.notRun], labels.noItems)}
+
+### ${labels.maintainerNotes}
+
+${(0, markdown_js_1.renderBulletList)(draft.maintainerNotes, labels.noItems)}
+`;
+}
+function renderIssueReproductionPrComment(options) {
+    const language = options.language ?? "en";
+    const labels = copy[language];
+    return `${exports.ISSUE_REPRODUCTION_PR_MARKER}
+${labels.commentIntro} ${options.prUrl}
+
+${labels.commentNote}
+
+${(0, markdown_js_1.sanitizeMarkdownText)(options.draft.summary)}
+`;
+}
+
+
+/***/ }),
+
 /***/ 2299:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
@@ -31549,6 +32294,22 @@ module.exports = require("net");
 
 /***/ }),
 
+/***/ 4573:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("node:buffer");
+
+/***/ }),
+
+/***/ 1421:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("node:child_process");
+
+/***/ }),
+
 /***/ 7598:
 /***/ ((module) => {
 
@@ -31586,6 +32347,14 @@ module.exports = require("node:fs/promises");
 
 "use strict";
 module.exports = require("node:path");
+
+/***/ }),
+
+/***/ 1708:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("node:process");
 
 /***/ }),
 

@@ -7,7 +7,10 @@ as `v0.1.0`; major tags such as `v0` may move to the latest compatible release.
 
 ## Unreleased
 
-No unreleased changes.
+- Add opt-in Issue reproduction draft PR generation for maintainer-approved Issues.
+- Add guarded agent configuration for trigger labels, comment commands, allowed paths, blocked
+  paths, and size limits.
+- Document workflow events and permissions required for reproduction draft PRs.
 
 ## 0.1.0 - 2026-06-20
 

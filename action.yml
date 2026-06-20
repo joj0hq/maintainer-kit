@@ -11,7 +11,7 @@ inputs:
     description: GitHub token used to read Issues/PRs and post comments.
     required: true
   openai-api-key:
-    description: OpenAI API key used to generate Decision Briefs.
+    description: OpenAI API key used to generate briefs and reproduction PR content.
     required: true
   config-path:
     description: Path to the maintainer-kit config file.
