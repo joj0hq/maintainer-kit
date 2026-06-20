@@ -2,8 +2,9 @@
 
 Language: English | [日本語](README.ja.md)
 
-`maintainer-kit` is a GitHub Action that turns GitHub Issues and Pull Requests into actionable
-Decision Briefs for maintainers and product teams.
+`maintainer-kit` is a GitHub Action that helps maintainers turn GitHub Issues and Pull Requests
+into actionable Decision Briefs, and can turn maintainer-approved Issues into small draft
+reproduction PRs.
 
 It helps humans answer the questions that often slow down maintenance work:
 
@@ -24,6 +25,7 @@ It helps humans answer the questions that often slow down maintenance work:
 - [Requirements](#requirements)
 - [Quick Start](#quick-start)
 - [Repository Context](#repository-context)
+- [Reproduction Draft PRs](#reproduction-draft-prs)
 - [Inputs](#inputs)
 - [Behavior](#behavior)
 - [Privacy And Safety](#privacy-and-safety)
@@ -48,11 +50,13 @@ before a 1.0 release.
 - Issue Intake Briefs for `issues.opened` and `issues.edited`
 - PR Decision Briefs for `pull_request.opened`, `pull_request.synchronize`, and
   `pull_request.reopened`
+- maintainer-approved reproduction draft PRs from Issues
 - repository context config via `.maintainer-kit.yml`
 - stable Markdown rendering from structured model output
 - English and Japanese brief comments
 - create, update, or skip comment publishing
 - dry-run mode for testing workflows safely
+- guarded branch, commit, push, and draft PR creation for explicitly enabled agent tasks
 - secret redaction, file filtering, and diff truncation before model calls
 - non-mutating default behavior
 
@@ -73,7 +77,7 @@ Not a fit:
 
 - replacing human maintainers
 - security scanning
-- automatic fixes, merges, labels, or issue closure
+- unapproved automatic fixes, merges, labels, or issue closure
 
 ## What It Produces
 
@@ -150,6 +154,7 @@ comment format stays stable.
 
 - GitHub Actions
 - `contents: read`, `issues: write`, and `pull-requests: write` workflow permissions
+- `contents: write` when `issue_reproduction_pr` is enabled
 - an OpenAI API key stored as `OPENAI_API_KEY`
 - a published `maintainer-kit` release tag with a bundled `dist/index.js`
 
@@ -209,7 +214,19 @@ project:
 features:
   issue_intake_brief: true
   pr_decision_brief: true
+  issue_reproduction_pr: false
   release_readiness_brief: false
+
+agent:
+  issue_reproduction_pr:
+    trigger_label: maintainer-kit:repro
+    trigger_comment: /maintainer-kit repro
+    branch_prefix: maintainer-kit
+    allowed_paths:
+      - tests/**
+      - fixtures/**
+      - docs/**
+      - examples/**
 
 behavior:
   comment_mode: update
@@ -270,12 +287,63 @@ privacy:
 
 See [.maintainer-kit.example.yml](.maintainer-kit.example.yml) for a fuller example.
 
+## Reproduction Draft PRs
+
+`maintainer-kit` can also turn maintainer-approved Issues into small draft PRs. This feature is
+disabled by default because it creates branches, commits, pushes, and pull requests.
+
+Enable it explicitly:
+
+```yaml
+features:
+  issue_reproduction_pr: true
+
+agent:
+  issue_reproduction_pr:
+    trigger_label: maintainer-kit:repro
+    trigger_comment: /maintainer-kit repro
+    allowed_paths:
+      - tests/**
+      - fixtures/**
+      - docs/**
+      - examples/**
+```
+
+Trigger it with either:
+
+- the configured label, for example `maintainer-kit:repro`
+- the configured issue comment command, for example `/maintainer-kit repro`, posted by a trusted
+  repository actor (`OWNER`, `MEMBER`, or `COLLABORATOR`)
+
+The generated PR is always a draft. The MVP intentionally aims for a reproduction or failing
+regression case first, not a full fix. It refuses generated files outside configured allowed paths,
+blocked paths, existing files, oversized files, and content that looks like a secret.
+
+Workflow events:
+
+```yaml
+on:
+  issues:
+    types: [opened, edited, labeled]
+  issue_comment:
+    types: [created]
+```
+
+Recommended workflow permissions:
+
+```yaml
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+```
+
 ## Inputs
 
 | Input             | Required | Default               | Description                                                             |
 | ----------------- | -------- | --------------------- | ----------------------------------------------------------------------- |
 | `github-token`    | yes      |                       | Token used to read Issues/PRs and post comments.                        |
-| `openai-api-key`  | yes      |                       | OpenAI API key used to generate Decision Briefs.                        |
+| `openai-api-key`  | yes      |                       | OpenAI API key used to generate briefs and reproduction PR content.     |
 | `config-path`     | no       | `.maintainer-kit.yml` | Path to the repository context config.                                  |
 | `mode`            | no       | `suggest`             | Supported values: `suggest`, `dry-run`.                                 |
 | `comment-mode`    | no       | `update`              | Supported values: `create`, `update`, `none`.                           |
@@ -284,14 +352,16 @@ See [.maintainer-kit.example.yml](.maintainer-kit.example.yml) for a fuller exam
 
 ## Behavior
 
-| Event                      | Result                                                                |
-| -------------------------- | --------------------------------------------------------------------- |
-| `issues.opened`            | Creates or updates an Issue Intake Brief.                             |
-| `issues.edited`            | Creates or updates an Issue Intake Brief.                             |
-| `pull_request.opened`      | Creates or updates a PR Decision Brief.                               |
-| `pull_request.synchronize` | Creates or updates a PR Decision Brief with the latest changed files. |
-| `pull_request.reopened`    | Creates or updates a PR Decision Brief.                               |
-| Unsupported events         | Exit successfully without posting a comment.                          |
+| Event                      | Result                                                                                                                                 |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `issues.opened`            | Creates or updates an Issue Intake Brief.                                                                                              |
+| `issues.edited`            | Creates or updates an Issue Intake Brief.                                                                                              |
+| `issues.labeled`           | Creates a reproduction draft PR when `issue_reproduction_pr` is enabled and the configured trigger label is applied.                   |
+| `issue_comment.created`    | Creates a reproduction draft PR when `issue_reproduction_pr` is enabled and a trusted maintainer posts the configured trigger command. |
+| `pull_request.opened`      | Creates or updates a PR Decision Brief.                                                                                                |
+| `pull_request.synchronize` | Creates or updates a PR Decision Brief with the latest changed files.                                                                  |
+| `pull_request.reopened`    | Creates or updates a PR Decision Brief.                                                                                                |
+| Unsupported events         | Exit successfully without posting a comment.                                                                                           |
 
 Comment modes:
 
@@ -314,7 +384,7 @@ Before sending context to the model, `maintainer-kit`:
   database URLs, environment variable assignments, and high-entropy strings
 - logs only non-sensitive execution metadata
 
-The action does not:
+By default, the action does not:
 
 - push commits
 - create branches
@@ -323,6 +393,10 @@ The action does not:
 - apply labels by default
 - delete human comments
 - store private data outside the GitHub Actions runtime
+
+When `features.issue_reproduction_pr` is explicitly enabled and a trusted trigger is used, the
+action can create a branch, commit generated reproduction files, push the branch, and open a draft
+PR. It still does not merge PRs, close Issues, or edit files outside configured allowed paths.
 
 ## Project Status
 

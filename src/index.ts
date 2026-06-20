@@ -1,5 +1,7 @@
 import * as core from "@actions/core";
 import * as github from "@actions/github";
+import { getIssueReproductionTrigger } from "./agent/issueReproductionTrigger.js";
+import { runIssueReproductionPr } from "./agent/runIssueReproductionPr.js";
 import { generateStructuredJson } from "./ai/client.js";
 import { buildIssueIntakePrompt } from "./ai/prompts/buildIssueIntakePrompt.js";
 import { buildPrDecisionPrompt } from "./ai/prompts/buildPrDecisionPrompt.js";
@@ -18,6 +20,7 @@ import type {
 import {
   getEventType,
   isSupportedIssueEvent,
+  isSupportedIssueReproductionEvent,
   isSupportedPullRequestEvent,
   type ActionContextLike
 } from "./github/context.js";
@@ -52,7 +55,11 @@ async function run(): Promise<void> {
     core.getInput("output-language") || loadedConfig.language.output
   );
 
-  if (!isSupportedIssueEvent(actionContext) && !isSupportedPullRequestEvent(actionContext)) {
+  if (
+    !isSupportedIssueEvent(actionContext) &&
+    !isSupportedIssueReproductionEvent(actionContext) &&
+    !isSupportedPullRequestEvent(actionContext)
+  ) {
     core.info(`Unsupported event type: ${eventType}. maintainer-kit did not run.`);
     return;
   }
@@ -62,6 +69,33 @@ async function run(): Promise<void> {
     core.getInput("comment-mode") || config.behavior.comment_mode
   );
   const dryRun = executionMode === "dry-run" || config.behavior.dry_run;
+  if (isSupportedIssueReproductionEvent(actionContext)) {
+    const trigger = getIssueReproductionTrigger(actionContext, config);
+    if (trigger.triggered) {
+      const githubToken = getRequiredInput("github-token");
+      const openAiApiKey = getRequiredInput("openai-api-key");
+      const model = core.getInput("model") || config.model.name || undefined;
+      const octokit = github.getOctokit(githubToken);
+      await runIssueReproductionPrHandler({
+        octokit,
+        context: actionContext,
+        config,
+        openAiApiKey,
+        model,
+        commentMode,
+        dryRun,
+        eventType,
+        startedAt
+      });
+      return;
+    }
+
+    if (!isSupportedIssueEvent(actionContext)) {
+      core.info(`Issue reproduction PR was not triggered: ${trigger.reason}`);
+      return;
+    }
+  }
+
   const githubToken = getRequiredInput("github-token");
   const openAiApiKey = getRequiredInput("openai-api-key");
   const model = core.getInput("model") || config.model.name || undefined;
@@ -137,6 +171,32 @@ async function runIssueBrief(options: HandlerOptions): Promise<void> {
     eventType: options.eventType,
     feature: "issue_intake_brief",
     commentResult,
+    durationMs: Date.now() - options.startedAt
+  });
+}
+
+async function runIssueReproductionPrHandler(options: HandlerOptions): Promise<void> {
+  const issue = applyIssuePrivacy(getIssueContext(options.context), options.config);
+  const result = await runIssueReproductionPr({
+    octokit: options.octokit,
+    repository: issue.repository,
+    issue,
+    config: options.config,
+    openAiApiKey: options.openAiApiKey,
+    model: options.model,
+    commentMode: options.commentMode,
+    dryRun: options.dryRun,
+    logger,
+    defaultBranch: getDefaultBranch(options.context)
+  });
+
+  logUsage(logger, {
+    eventType: options.eventType,
+    feature: "issue_reproduction_pr",
+    commentResult: result.commentResult,
+    created: result.created,
+    files: result.files.length,
+    skippedReason: result.skippedReason,
     durationMs: Date.now() - options.startedAt
   });
 }
@@ -259,6 +319,10 @@ function parseOutputLanguage(value: string): OutputLanguage {
     return value;
   }
   throw new Error(`Invalid output-language: ${value}. Supported values: en, ja.`);
+}
+
+function getDefaultBranch(context: ActionContextLike): string {
+  return context.payload.repository?.default_branch ?? "main";
 }
 
 function getRequiredInput(name: string): string {

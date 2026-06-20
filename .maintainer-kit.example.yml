@@ -9,7 +9,46 @@ project:
 features:
   issue_intake_brief: true
   pr_decision_brief: true
+  issue_reproduction_pr: false
   release_readiness_brief: false
+
+agent:
+  issue_reproduction_pr:
+    trigger_label: maintainer-kit:repro
+    trigger_comment: /maintainer-kit repro
+    branch_prefix: maintainer-kit
+    allowed_paths:
+      - tests/**
+      - test/**
+      - __tests__/**
+      - fixtures/**
+      - docs/**
+      - examples/**
+    blocked_paths:
+      - .github/**
+      - .env
+      - .env.*
+      - package.json
+      - pnpm-lock.yaml
+      - package-lock.json
+      - yarn.lock
+    context_paths:
+      - package.json
+      - tsconfig.json
+      - vitest.config.*
+      - jest.config.*
+      - tests/**
+      - test/**
+      - __tests__/**
+      - fixtures/**
+      - docs/**
+      - examples/**
+      - src/**
+    max_files_changed: 3
+    max_file_bytes: 20000
+    max_total_bytes: 40000
+    max_context_files: 40
+    max_context_chars: 60000
 
 behavior:
   comment_mode: update
