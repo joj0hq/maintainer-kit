@@ -1,0 +1,68 @@
+project:
+  name: example-library
+  type: oss
+  domain: developer_tooling
+  platforms:
+    - node
+    - cli
+
+features:
+  issue_intake_brief: true
+  pr_decision_brief: true
+  release_readiness_brief: false
+
+behavior:
+  comment_mode: update
+  auto_label: false
+  auto_close: false
+  dry_run: false
+
+model:
+  provider: openai
+  name: gpt-4.1-mini
+  max_input_tokens: 12000
+
+metrics:
+  primary: []
+  secondary: []
+
+critical_flows:
+  - install
+  - configuration
+  - cli_execution
+  - api_compatibility
+
+sensitive_areas:
+  - breaking_change
+  - security
+  - performance
+  - public_api
+  - documentation
+
+roles:
+  maintainer:
+    required_for:
+      - breaking_change
+      - public_api
+      - release
+  docs:
+    required_for:
+      - documentation
+      - examples
+
+privacy:
+  max_diff_lines: 800
+  max_diff_chars: 50000
+  redact_secrets: true
+  exclude_files:
+    - package-lock.json
+    - pnpm-lock.yaml
+    - yarn.lock
+    - "*.min.js"
+    - "*.png"
+    - "*.jpg"
+    - "*.jpeg"
+    - "*.gif"
+    - "*.webp"
+    - "*.pdf"
+    - "*.zip"

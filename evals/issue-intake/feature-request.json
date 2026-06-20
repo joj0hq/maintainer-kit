@@ -1,0 +1,12 @@
+{
+  "issue": {
+    "title": "Add CSV export",
+    "body": "It would be useful to export report data to CSV.",
+    "labels": ["enhancement"]
+  },
+  "expectations": [
+    "classifies as feature_request",
+    "asks for target user flow and acceptance criteria",
+    "recommends product or maintainer review"
+  ]
+}

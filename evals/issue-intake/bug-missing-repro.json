@@ -1,0 +1,12 @@
+{
+  "issue": {
+    "title": "Login fails after password reset",
+    "body": "After resetting my password, I cannot log in anymore.",
+    "labels": ["bug"]
+  },
+  "expectations": [
+    "asks for reproduction steps",
+    "identifies authentication as an affected area",
+    "does not recommend closing the issue"
+  ]
+}

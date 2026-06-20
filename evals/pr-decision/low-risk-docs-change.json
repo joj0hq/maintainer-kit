@@ -1,0 +1,12 @@
+{
+  "pullRequest": {
+    "title": "Fix README typo",
+    "body": "Corrects a typo in the install section.",
+    "files": ["README.md"]
+  },
+  "expectations": [
+    "recognizes low operational risk",
+    "keeps QA checklist minimal",
+    "recommends docs or maintainer review only if useful"
+  ]
+}

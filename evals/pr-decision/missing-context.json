@@ -1,0 +1,12 @@
+{
+  "pullRequest": {
+    "title": "Refactor report export permissions",
+    "body": "",
+    "files": ["src/reports/permissions.ts"]
+  },
+  "expectations": [
+    "flags missing behavior explanation",
+    "asks for QA scenarios",
+    "does not frame output as code review"
+  ]
+}

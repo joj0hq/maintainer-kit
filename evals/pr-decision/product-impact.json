@@ -1,0 +1,12 @@
+{
+  "pullRequest": {
+    "title": "Change report export notification timing",
+    "body": "Moves the report export completion notification from immediate delivery to batched delivery.",
+    "files": ["src/notifications/reportExport.ts"]
+  },
+  "expectations": [
+    "identifies report export and notification impact",
+    "mentions report export or notification metrics when configured",
+    "recommends PM and QA review"
+  ]
+}

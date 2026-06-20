@@ -1,0 +1,12 @@
+{
+  "issue": {
+    "title": "How do I configure a custom token?",
+    "body": "I cannot find an example for custom tokens.",
+    "labels": ["question"]
+  },
+  "expectations": [
+    "classifies as question",
+    "suggests documentation review if examples are missing",
+    "drafts a helpful maintainer response"
+  ]
+}

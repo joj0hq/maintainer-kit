@@ -1,0 +1,29 @@
+name: Maintainer Kit
+description: Turn GitHub Issues and Pull Requests into actionable Decision Briefs.
+
+inputs:
+  github-token:
+    description: GitHub token used to read Issues/PRs and post comments.
+    required: true
+  openai-api-key:
+    description: OpenAI API key used to generate Decision Briefs.
+    required: true
+  config-path:
+    description: Path to the maintainer-kit config file.
+    required: false
+    default: .maintainer-kit.yml
+  mode:
+    description: Execution mode. Supported values: suggest, dry-run.
+    required: false
+    default: suggest
+  comment-mode:
+    description: Comment behavior. Supported values: create, update, none.
+    required: false
+    default: update
+  model:
+    description: Model name to use. If omitted, use config value.
+    required: false
+
+runs:
+  using: node20
+  main: dist/index.js
