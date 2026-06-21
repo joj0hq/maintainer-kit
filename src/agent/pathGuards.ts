@@ -1,5 +1,5 @@
 import { Buffer } from "node:buffer";
-import { existsSync } from "node:fs";
+import { existsSync, lstatSync } from "node:fs";
 import { join } from "node:path";
 import { cwd } from "node:process";
 import { matchGlob } from "../utils/matchGlob.js";
@@ -48,6 +48,8 @@ export function validateGeneratedFiles(
     if (!isPathAllowed(path, options.allowedPaths, options.blockedPaths)) {
       throw new Error(`Issue reproduction PR attempted to write outside allowed paths: ${path}`);
     }
+
+    assertNoSymlinkComponents(options.root ?? cwd(), path);
 
     if (!options.allowExistingFiles && existsSync(join(options.root ?? cwd(), path))) {
       throw new Error(`Issue reproduction PR attempted to overwrite an existing file: ${path}`);
@@ -101,4 +103,24 @@ export function normalizeRepositoryPath(path: string): string {
   }
 
   return normalized;
+}
+
+function assertNoSymlinkComponents(root: string, path: string): void {
+  const segments = path.split("/");
+  let currentPath = root;
+
+  for (const [index, segment] of segments.entries()) {
+    currentPath = join(currentPath, segment);
+    if (!existsSync(currentPath)) {
+      continue;
+    }
+
+    const fileStat = lstatSync(currentPath);
+    if (fileStat.isSymbolicLink()) {
+      throw new Error(`Agent draft PR attempted to write through a symbolic link: ${path}`);
+    }
+    if (index < segments.length - 1 && !fileStat.isDirectory()) {
+      throw new Error(`Agent draft PR path contains a non-directory component: ${path}`);
+    }
+  }
 }

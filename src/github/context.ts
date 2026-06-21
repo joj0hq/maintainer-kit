@@ -26,6 +26,10 @@ export function isSupportedIssueReproductionEvent(context: ActionContextLike): b
   return context.eventName === "issue_comment" && context.payload.action === "created";
 }
 
+export function isSupportedCiFixEvent(context: ActionContextLike): boolean {
+  return context.eventName === "issue_comment" && context.payload.action === "created";
+}
+
 export function isSupportedPullRequestEvent(context: ActionContextLike): boolean {
   return (
     context.eventName === "pull_request" &&

@@ -7,7 +7,10 @@ as `v0.1.0`; major tags such as `v0` may move to the latest compatible release.
 
 ## Unreleased
 
-No unreleased changes.
+- Add opt-in `/maintainer-kit fix-ci` support for creating focused stacked draft PRs from failed
+  GitHub Actions runs.
+- Add failed job log redaction, truncation, same-repository restrictions, and path guardrails for CI
+  repair.
 
 ## 0.2.0 - 2026-06-21
 
