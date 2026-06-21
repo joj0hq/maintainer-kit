@@ -24,7 +24,8 @@ cat >"$body_file" <<JSON
   "required_status_checks": {
     "strict": true,
     "contexts": [
-      "test"
+      "test",
+      "release-label"
     ]
   },
   "enforce_admins": $enforce_admins,

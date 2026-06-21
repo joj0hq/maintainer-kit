@@ -1,0 +1,47 @@
+name: Prepare Release
+
+on:
+  pull_request_target:
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      pull_request_number:
+        description: Merged pull request number to add to the rolling Release PR
+        required: true
+        type: number
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: prepare-release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_TOKEN || github.token }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+      - name: Verify release token
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          if [[ -z "$RELEASE_TOKEN" ]]; then
+            echo "Set the RELEASE_TOKEN repository secret before enabling rolling Release PRs."
+            echo "Use a fine-grained PAT or GitHub App token with Contents, Issues, and Pull requests write access."
+            exit 1
+          fi
+      - name: Create or update rolling Release PR
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: node scripts/prepare-release-pr.mjs
