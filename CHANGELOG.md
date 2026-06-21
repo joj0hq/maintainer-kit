@@ -7,12 +7,17 @@ as `v0.1.0`; major tags such as `v0` may move to the latest compatible release.
 
 ## Unreleased
 
+No unreleased changes.
+
+## 0.2.0 - 2026-06-21
+
 - Add opt-in Issue reproduction draft PR generation for maintainer-approved Issues.
 - Add guarded agent configuration for trigger labels, comment commands, allowed paths, blocked
   paths, and size limits.
 - Document workflow events and permissions required for reproduction draft PRs.
 - Add label-driven rolling Release PRs with automatic semantic version calculation.
 - Publish releases when the maintainer-approved Release PR is merged.
+- #3 [codex] Automate rolling release pull requests
 
 ## 0.1.0 - 2026-06-20
 
