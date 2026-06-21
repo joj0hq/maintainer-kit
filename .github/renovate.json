@@ -1,0 +1,32 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":disableDependencyDashboard"],
+  "enabledManagers": ["github-actions", "npm"],
+  "automerge": false,
+  "draftPR": true,
+  "rangeStrategy": "bump",
+  "prConcurrentLimit": 5,
+  "prBodyNotes": ["Maintainer checklist: apply exactly one `release:*` label before merge."],
+  "packageRules": [
+    {
+      "description": ["Group non-major GitHub Actions updates"],
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "GitHub Actions"
+    },
+    {
+      "description": ["Group non-major development dependency updates"],
+      "matchManagers": ["npm"],
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "development dependencies"
+    },
+    {
+      "description": ["Remind maintainers to refresh the committed action bundle"],
+      "matchManagers": ["npm"],
+      "prBodyNotes": [
+        "This repository commits the generated action bundle. Run `pnpm install --frozen-lockfile && pnpm bundle`, then commit any resulting `dist/index.js` changes."
+      ]
+    }
+  ]
+}

@@ -575,6 +575,11 @@ pnpm test
 pnpm build
 ```
 
+[Renovate GitHub App](https://github.com/apps/renovate) をインストールすると、依存関係の更新は
+Renovate の draft PR として提案されます。Renovate は自動 merge や release label の付与を行いません。
+npm または pnpm の更新では maintainer が `dist/index.js` を再生成し、merge 前に適切な
+`release:*` label を付けてください。詳しくは [CONTRIBUTING.md](CONTRIBUTING.md) を見てください。
+
 主なファイル:
 
 - [action.yml](action.yml): GitHub Action の metadata と inputs

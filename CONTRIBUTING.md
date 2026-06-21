@@ -64,6 +64,20 @@ there is another maintainer who can approve owner-authored pull requests.
 - Do not include real repository data, API keys, tokens, or sensitive diffs in fixtures.
 - Keep `dist/index.js` updated when changing runtime code intended for a release.
 
+## Dependency Updates
+
+Renovate is configured in [`.github/renovate.json`](.github/renovate.json) to monitor npm, pnpm,
+and GitHub Actions dependencies. A repository owner must install the
+[Renovate GitHub App](https://github.com/apps/renovate) for the configuration to run.
+
+Renovate opens draft pull requests and does not automerge, apply release labels, or create a
+Dependency Dashboard Issue. Before marking a Renovate PR ready for review:
+
+- review the dependency changelog and compatibility impact
+- run the normal checks
+- for npm or pnpm updates, run `pnpm bundle` and commit any changed `dist/index.js`
+- apply the appropriate `release:*` label, usually `release:patch` for dependency maintenance
+
 ## Project Boundaries
 
 `maintainer-kit` should remain human-in-the-loop by default. Changes that automatically merge PRs,

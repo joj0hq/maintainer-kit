@@ -7,7 +7,8 @@ as `v0.1.0`; major tags such as `v0` may move to the latest compatible release.
 
 ## Unreleased
 
-No unreleased changes.
+- Add Renovate configuration for draft, human-reviewed npm, pnpm, and GitHub Actions dependency
+  updates.
 
 ## 0.3.1 - 2026-06-21
 

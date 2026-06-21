@@ -604,6 +604,11 @@ pnpm test
 pnpm build
 ```
 
+Dependency updates are proposed by Renovate as draft pull requests after the
+[Renovate GitHub App](https://github.com/apps/renovate) is installed. Renovate does not automerge or
+apply release labels. Maintainers should regenerate `dist/index.js` for npm or pnpm updates and add
+the appropriate `release:*` label before merge. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
 Useful files:
 
 - [action.yml](action.yml): GitHub Action metadata and inputs
