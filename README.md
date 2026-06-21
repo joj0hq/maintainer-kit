@@ -26,6 +26,7 @@ It helps humans answer the questions that often slow down maintenance work:
 - [Quick Start](#quick-start)
 - [Repository Context](#repository-context)
 - [Reproduction Draft PRs](#reproduction-draft-prs)
+- [CI Fix Draft PRs](#ci-fix-draft-prs)
 - [Inputs](#inputs)
 - [Behavior](#behavior)
 - [Privacy And Safety](#privacy-and-safety)
@@ -51,6 +52,7 @@ before a 1.0 release.
 - PR Decision Briefs for `pull_request.opened`, `pull_request.synchronize`, and
   `pull_request.reopened`
 - maintainer-approved reproduction draft PRs from Issues
+- maintainer-approved focused CI fix draft PRs from failed GitHub Actions runs
 - repository context config via `.maintainer-kit.yml`
 - stable Markdown rendering from structured model output
 - English and Japanese brief comments
@@ -154,7 +156,8 @@ comment format stays stable.
 
 - GitHub Actions
 - `contents: read`, `issues: write`, and `pull-requests: write` workflow permissions
-- `contents: write` when `issue_reproduction_pr` is enabled
+- `contents: write` when a draft PR agent feature is enabled
+- `actions: read` when `ci_fix_pr` is enabled
 - an OpenAI API key stored as `OPENAI_API_KEY`
 - a published `maintainer-kit` release tag with a bundled `dist/index.js`
 
@@ -215,6 +218,7 @@ features:
   issue_intake_brief: true
   pr_decision_brief: true
   issue_reproduction_pr: false
+  ci_fix_pr: false
   release_readiness_brief: false
 
 agent:
@@ -227,6 +231,14 @@ agent:
       - fixtures/**
       - docs/**
       - examples/**
+  ci_fix_pr:
+    trigger_comment: /maintainer-kit fix-ci
+    branch_prefix: maintainer-kit
+    allowed_paths:
+      - src/**
+      - tests/**
+      - docs/**
+      - scripts/**
 
 behavior:
   comment_mode: update
@@ -333,9 +345,67 @@ Recommended workflow permissions:
 
 ```yaml
 permissions:
+  actions: read
   contents: write
   issues: write
   pull-requests: write
+```
+
+## CI Fix Draft PRs
+
+`maintainer-kit` can turn a failed GitHub Actions run into a small stacked draft PR. This feature is
+disabled by default.
+
+```yaml
+features:
+  ci_fix_pr: true
+
+agent:
+  ci_fix_pr:
+    trigger_comment: /maintainer-kit fix-ci
+    allowed_paths:
+      - src/**
+      - tests/**
+      - docs/**
+      - scripts/**
+```
+
+When an `OWNER`, `MEMBER`, or `COLLABORATOR` comments `/maintainer-kit fix-ci` on an open pull
+request, the action:
+
+1. finds the latest failed `pull_request` workflow run for that PR
+2. downloads only failed job logs
+3. redacts and truncates logs before the model call
+4. checks out the current PR head without running repository code
+5. generates a guarded, focused change
+6. opens a stacked draft PR targeting the original PR branch
+
+The MVP supports same-repository PRs only. Fork PRs remain read-only. It does not execute
+contributor-controlled code or model-generated commands in the privileged repair job; normal CI on
+the generated draft PR performs validation.
+
+To let the generated PR trigger normal workflows, pass a fine-grained PAT or GitHub App token as
+`github-token`. Pull requests created with the default Actions `GITHUB_TOKEN` do not trigger new
+workflow runs. Grant Actions read plus Contents, Issues, and Pull requests read/write access, and
+limit the token to the target repository.
+
+```yaml
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  actions: read
+  contents: write
+  issues: write
+  pull-requests: write
+
+steps:
+  - uses: actions/checkout@v7
+  - uses: joj0hq/maintainer-kit@v0
+    with:
+      github-token: ${{ secrets.MAINTAINER_KIT_TOKEN }}
+      openai-api-key: ${{ secrets.OPENAI_API_KEY }}
 ```
 
 ## Inputs
@@ -343,7 +413,7 @@ permissions:
 | Input             | Required | Default               | Description                                                             |
 | ----------------- | -------- | --------------------- | ----------------------------------------------------------------------- |
 | `github-token`    | yes      |                       | Token used to read Issues/PRs and post comments.                        |
-| `openai-api-key`  | yes      |                       | OpenAI API key used to generate briefs and reproduction PR content.     |
+| `openai-api-key`  | yes      |                       | OpenAI API key used to generate briefs and guarded draft PR content.    |
 | `config-path`     | no       | `.maintainer-kit.yml` | Path to the repository context config.                                  |
 | `mode`            | no       | `suggest`             | Supported values: `suggest`, `dry-run`.                                 |
 | `comment-mode`    | no       | `update`              | Supported values: `create`, `update`, `none`.                           |
@@ -352,16 +422,16 @@ permissions:
 
 ## Behavior
 
-| Event                      | Result                                                                                                                                 |
-| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `issues.opened`            | Creates or updates an Issue Intake Brief.                                                                                              |
-| `issues.edited`            | Creates or updates an Issue Intake Brief.                                                                                              |
-| `issues.labeled`           | Creates a reproduction draft PR when `issue_reproduction_pr` is enabled and the configured trigger label is applied.                   |
-| `issue_comment.created`    | Creates a reproduction draft PR when `issue_reproduction_pr` is enabled and a trusted maintainer posts the configured trigger command. |
-| `pull_request.opened`      | Creates or updates a PR Decision Brief.                                                                                                |
-| `pull_request.synchronize` | Creates or updates a PR Decision Brief with the latest changed files.                                                                  |
-| `pull_request.reopened`    | Creates or updates a PR Decision Brief.                                                                                                |
-| Unsupported events         | Exit successfully without posting a comment.                                                                                           |
+| Event                      | Result                                                                                                               |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `issues.opened`            | Creates or updates an Issue Intake Brief.                                                                            |
+| `issues.edited`            | Creates or updates an Issue Intake Brief.                                                                            |
+| `issues.labeled`           | Creates a reproduction draft PR when `issue_reproduction_pr` is enabled and the configured trigger label is applied. |
+| `issue_comment.created`    | Runs an enabled reproduction or CI-fix command posted by a trusted maintainer.                                       |
+| `pull_request.opened`      | Creates or updates a PR Decision Brief.                                                                              |
+| `pull_request.synchronize` | Creates or updates a PR Decision Brief with the latest changed files.                                                |
+| `pull_request.reopened`    | Creates or updates a PR Decision Brief.                                                                              |
+| Unsupported events         | Exit successfully without posting a comment.                                                                         |
 
 Comment modes:
 
@@ -397,6 +467,10 @@ By default, the action does not:
 When `features.issue_reproduction_pr` is explicitly enabled and a trusted trigger is used, the
 action can create a branch, commit generated reproduction files, push the branch, and open a draft
 PR. It still does not merge PRs, close Issues, or edit files outside configured allowed paths.
+
+When `features.ci_fix_pr` is enabled, the action can read failed GitHub Actions logs and create a
+stacked draft PR for a same-repository PR. It does not run contributor-controlled code in the
+privileged repair job.
 
 ## Project Status
 

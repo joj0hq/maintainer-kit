@@ -1,5 +1,5 @@
 name: Maintainer Kit
-description: Turn GitHub Issues and Pull Requests into actionable Decision Briefs.
+description: Turn maintainer-approved GitHub work into actionable briefs and small draft PRs.
 author: joj0hq
 
 branding:
@@ -8,10 +8,10 @@ branding:
 
 inputs:
   github-token:
-    description: GitHub token used to read Issues/PRs and post comments.
+    description: GitHub token used to read context and optionally create guarded draft PRs.
     required: true
   openai-api-key:
-    description: OpenAI API key used to generate briefs and reproduction PR content.
+    description: OpenAI API key used to generate briefs, reproductions, and focused CI fixes.
     required: true
   config-path:
     description: Path to the maintainer-kit config file.

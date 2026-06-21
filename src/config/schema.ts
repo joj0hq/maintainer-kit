@@ -21,6 +21,7 @@ export const maintainerKitConfigSchema = z.object({
       issue_intake_brief: z.boolean(),
       pr_decision_brief: z.boolean(),
       issue_reproduction_pr: z.boolean(),
+      ci_fix_pr: z.boolean(),
       release_readiness_brief: z.boolean()
     })
     .strict(),
@@ -39,6 +40,24 @@ export const maintainerKitConfigSchema = z.object({
           max_total_bytes: z.number().int().positive(),
           max_context_files: z.number().int().positive(),
           max_context_chars: z.number().int().positive()
+        })
+        .strict(),
+      ci_fix_pr: z
+        .object({
+          trigger_comment: z.string(),
+          branch_prefix: z.string(),
+          allowed_paths: stringArraySchema,
+          blocked_paths: stringArraySchema,
+          context_paths: stringArraySchema,
+          max_files_changed: z.number().int().positive(),
+          max_file_bytes: z.number().int().positive(),
+          max_total_bytes: z.number().int().positive(),
+          max_context_files: z.number().int().positive(),
+          max_context_chars: z.number().int().positive(),
+          max_diff_lines: z.number().int().positive(),
+          max_diff_chars: z.number().int().positive(),
+          max_log_chars: z.number().int().positive(),
+          max_failed_jobs: z.number().int().positive()
         })
         .strict()
     })

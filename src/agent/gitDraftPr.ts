@@ -12,8 +12,26 @@ export interface CommitAndPushOptions {
 export async function ensureCleanWorkingTree(): Promise<void> {
   const result = await runGit(["status", "--porcelain"]);
   if (result.stdout.trim()) {
-    throw new Error("Working tree is not clean. Refusing to create an issue reproduction PR.");
+    throw new Error("Working tree is not clean. Refusing to create an agent draft PR.");
   }
+}
+
+export async function checkoutPullRequestHead(options: {
+  headRef: string;
+  headSha: string;
+}): Promise<void> {
+  await ensureCleanWorkingTree();
+  await runGit(["fetch", "--no-tags", "origin", `refs/heads/${options.headRef}`]);
+  const fetched = await runGit(["rev-parse", "FETCH_HEAD"]);
+  const fetchedSha = fetched.stdout.trim();
+
+  if (fetchedSha !== options.headSha) {
+    throw new Error(
+      `Pull request head moved from ${options.headSha} to ${fetchedSha}. Run the command again against the latest commit.`
+    );
+  }
+
+  await runGit(["checkout", "--detach", fetchedSha]);
 }
 
 export async function commitAndPushDraftBranch(options: CommitAndPushOptions): Promise<void> {

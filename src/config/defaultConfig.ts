@@ -11,6 +11,7 @@ export const defaultConfig: MaintainerKitConfig = {
     issue_intake_brief: true,
     pr_decision_brief: true,
     issue_reproduction_pr: false,
+    ci_fix_pr: false,
     release_readiness_brief: false
   },
   agent: {
@@ -53,6 +54,59 @@ export const defaultConfig: MaintainerKitConfig = {
       max_total_bytes: 40000,
       max_context_files: 40,
       max_context_chars: 60000
+    },
+    ci_fix_pr: {
+      trigger_comment: "/maintainer-kit fix-ci",
+      branch_prefix: "maintainer-kit",
+      allowed_paths: [
+        "src/**",
+        "tests/**",
+        "test/**",
+        "__tests__/**",
+        "fixtures/**",
+        "docs/**",
+        "examples/**",
+        "scripts/**",
+        "*.ts",
+        "*.js",
+        "*.mjs",
+        "*.cjs",
+        "*.md"
+      ],
+      blocked_paths: [
+        ".github/**",
+        ".env",
+        ".env.*",
+        "package.json",
+        "pnpm-lock.yaml",
+        "package-lock.json",
+        "yarn.lock",
+        "dist/**"
+      ],
+      context_paths: [
+        "package.json",
+        "tsconfig.json",
+        "eslint.config.*",
+        "vitest.config.*",
+        "jest.config.*",
+        "src/**",
+        "tests/**",
+        "test/**",
+        "__tests__/**",
+        "fixtures/**",
+        "docs/**",
+        "examples/**",
+        "scripts/**"
+      ],
+      max_files_changed: 5,
+      max_file_bytes: 30000,
+      max_total_bytes: 80000,
+      max_context_files: 60,
+      max_context_chars: 16000,
+      max_diff_lines: 250,
+      max_diff_chars: 12000,
+      max_log_chars: 12000,
+      max_failed_jobs: 3
     }
   },
   behavior: {
