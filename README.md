@@ -16,9 +16,30 @@ It helps humans answer the questions that often slow down maintenance work:
 - What QA or release checks are worth doing?
 - What response should a maintainer send next?
 
+## Why This Matters
+
+Open source maintainers rarely need an AI tool that simply “approves” code. The harder problem is
+turning incomplete Issues, unclear Pull Requests, failed CI, and release risk into decisions that a
+human maintainer can safely act on.
+
+`maintainer-kit` focuses on that operational layer:
+
+- triaging Issues into actionable maintainer briefs
+- identifying missing context before investigation starts
+- framing PR decisions instead of replacing review judgment
+- mapping affected repository areas and reviewer roles
+- generating QA and release-readiness checklists
+- creating draft PRs only after trusted maintainer approval
+- redacting secrets and truncating large diffs/logs before model calls
+
+This makes it useful not only for this repository, but for other OSS maintainers who want safer,
+more consistent maintainer workflows.
+
 ## Table Of Contents
 
+- [Why This Matters](#why-this-matters)
 - [Status](#status)
+- [Used By / Early Adopters](#used-by--early-adopters)
 - [Features](#features)
 - [When To Use It](#when-to-use-it)
 - [What It Produces](#what-it-produces)
@@ -45,6 +66,20 @@ The repository includes the generated `dist/index.js` bundle required by the Git
 
 The project is currently in the 0.x release line. Prompts, config, and output details may evolve
 before a 1.0 release.
+
+## Used By / Early Adopters
+
+`maintainer-kit` is currently being dogfooded in this repository.
+
+Early adoption is intentionally conservative:
+
+- brief generation is enabled for Issues and Pull Requests
+- mutating agent features remain disabled by default
+- draft PR automation requires explicit maintainer triggers
+- public examples and screenshots will be collected under `docs/demo.md`
+
+If you are using `maintainer-kit` in a public repository, please open an Issue or PR so it can be
+listed here.
 
 ## Features
 
