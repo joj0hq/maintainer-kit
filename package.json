@@ -1,6 +1,6 @@
 {
   "name": "maintainer-kit",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "description": "Turn GitHub Issues and Pull Requests into actionable Decision Briefs.",
   "license": "MIT",

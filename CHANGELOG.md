@@ -9,6 +9,10 @@ as `v0.1.0`; major tags such as `v0` may move to the latest compatible release.
 
 No unreleased changes.
 
+## 0.3.1 - 2026-06-21
+
+- #10 [codex] Prepare OSS readiness and dogfood materials
+
 ## 0.3.0 - 2026-06-21
 
 - Add opt-in `/maintainer-kit fix-ci` support for creating focused stacked draft PRs from failed
