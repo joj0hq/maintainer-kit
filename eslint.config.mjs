@@ -26,6 +26,17 @@ export default [
     }
   },
   {
+    files: ["**/*.mjs"],
+    languageOptions: {
+      globals: {
+        console: "readonly",
+        fetch: "readonly",
+        process: "readonly",
+        URLSearchParams: "readonly"
+      }
+    }
+  },
+  {
     ignores: ["dist/**", "node_modules/**", "coverage/**"]
   }
 ];

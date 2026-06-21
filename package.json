@@ -15,7 +15,7 @@
   ],
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run && node --test tests/*.node-test.mjs",
     "lint": "eslint .",
     "format": "prettier --check .",
     "bundle": "ncc build src/index.ts -o dist --target es2020",

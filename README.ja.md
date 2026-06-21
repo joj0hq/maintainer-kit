@@ -409,7 +409,8 @@ API key、token、private repository content、sensitive な full diff は Issue
 
 詳しくは [CONTRIBUTING.md](CONTRIBUTING.md) を見てください。
 
-`main` branch は、CI 必須かつ 1 approval 必須の protected branch として運用する想定です。maintainer は
+`main` branch は、CI、release-label validation、1 approval を必須にする protected branch
+として運用する想定です。maintainer は
 [`scripts/apply-main-branch-protection.sh`](scripts/apply-main-branch-protection.sh) で想定設定を適用できます。
 
 ## Security
@@ -422,18 +423,19 @@ MIT License です。詳細は [LICENSE](LICENSE) を見てください。
 
 ## Release
 
-release tag は GitHub Actions の `Release` workflow から公開します。
+通常 PR には `release:patch`, `release:minor`, `release:major`, `release:none` のいずれか1つを付けます。
 
-GitHub Release には `v0.1.0` のような full version tag を使います。`v0` major tag は、user workflow
-向けの moving compatibility tag として更新します。
+release対象の PR が merge されると、`Prepare Release` workflow が1本の rolling
+`release/next` draft PR を作成または更新します。含まれる release label のうち最も大きな increment
+から次の version を計算し、`package.json` と `CHANGELOG.md` を更新します。
 
-`Release` workflow は次の2通りで release を公開できます。
+rolling Release PR を mergeすると、immutable full tag と GitHub Release を公開し、major / minor
+compatibility tag を更新します。version の手動入力は不要です。
 
-- `v0.1.0` のような full version を指定して手動実行する
-- `v0.1.0` のような full version tag を push する
+最初の repository setup では次が必要です。
 
-どちらの場合も、workflow が check を実行し、GitHub Release を作成し、stable release では `v0` major tag
-を更新します。
+- `Setup Release Labels` workflow の実行
+- Release PR でも通常 CI が起動するようにするための `RELEASE_TOKEN` Actions secret
 
 公開前に maintainer は次を確認します。
 
@@ -441,6 +443,7 @@ GitHub Release には `v0.1.0` のような full version tag を使います。`
 pnpm install --frozen-lockfile
 pnpm typecheck
 pnpm test
+pnpm lint
 pnpm bundle
 git diff --exit-code dist
 ```

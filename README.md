@@ -421,7 +421,8 @@ Contributions are welcome while the project is small and still taking shape.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-The `main` branch is intended to be protected with required CI and one approving review.
+The `main` branch is intended to be protected with required CI, release-label validation, and one
+approving review.
 Maintainers can apply the expected GitHub branch protection with
 [`scripts/apply-main-branch-protection.sh`](scripts/apply-main-branch-protection.sh).
 
@@ -435,18 +436,20 @@ MIT License. See [LICENSE](LICENSE).
 
 ## Release
 
-Release tags are published through the `Release` GitHub Actions workflow.
+Every normal PR must have exactly one of `release:patch`, `release:minor`, `release:major`, or
+`release:none`.
 
-Use full version tags such as `v0.1.0` for GitHub Releases. The `v0` major tag is a moving
-compatibility tag for user workflows.
+After a releasable PR merges, the `Prepare Release` workflow creates or updates one rolling
+`release/next` draft PR. It calculates the next version from the highest included release label and
+updates `package.json` and `CHANGELOG.md`.
 
-The `Release` workflow can publish releases in two ways:
+Merging the rolling Release PR publishes the immutable full tag and GitHub Release, then moves the
+major and minor compatibility tags. No manual version input is required.
 
-- manual dispatch with a full version such as `v0.1.0`
-- push of a full version tag such as `v0.1.0`
+Initial repository setup requires:
 
-In both cases, the workflow runs the checks, creates the GitHub Release, and moves the `v0` major
-tag for stable releases.
+- running the `Setup Release Labels` workflow
+- configuring a `RELEASE_TOKEN` Actions secret so Release PRs trigger normal CI
 
 Before publishing, maintainers should verify:
 
@@ -454,6 +457,7 @@ Before publishing, maintainers should verify:
 pnpm install --frozen-lockfile
 pnpm typecheck
 pnpm test
+pnpm lint
 pnpm bundle
 git diff --exit-code dist
 ```

@@ -36,6 +36,7 @@ The `main` branch should stay protected for OSS contributions:
 
 - require pull requests before merging
 - require the `test` status check to pass
+- require the `release-label` status check to pass
 - require branches to be up to date before merging
 - require 1 approving review
 - dismiss stale approvals when new commits are pushed
@@ -53,6 +54,11 @@ there is another maintainer who can approve owner-authored pull requests.
 ## Pull Requests
 
 - Keep PRs small and focused.
+- Add exactly one release label:
+  - `release:patch` for backward-compatible fixes, docs, and maintenance
+  - `release:minor` for backward-compatible features
+  - `release:major` for breaking releases or an explicit 1.0 release
+  - `release:none` when no versioned release is needed
 - Include tests when changing config, privacy filtering, diff truncation, rendering, or GitHub
   comment behavior.
 - Do not include real repository data, API keys, tokens, or sensitive diffs in fixtures.

@@ -64,6 +64,8 @@ git diff --exit-code dist
 
 ## Release And Repository Rules
 
-- Releases are created by the `Release` workflow. Full version tags such as `v0.1.0` are immutable release tags; `v0` is the moving compatibility tag for users.
+- Normal pull requests require exactly one `release:patch`, `release:minor`, `release:major`, or `release:none` label.
+- Releasable merges update the rolling `release/next` draft PR. Merging that PR publishes the version from `package.json`.
+- Full version tags such as `v0.1.0` are immutable release tags; major and minor tags are moving compatibility tags for users.
 - `dist/index.js` must be committed before release because JavaScript actions execute the bundle from the selected Git ref.
-- The `main` branch is expected to be protected with required CI, up-to-date branches, and at least one approving review.
+- The `main` branch is expected to be protected with required CI, release-label validation, up-to-date branches, and at least one approving review.
