@@ -21,6 +21,16 @@ describe("loadConfig", () => {
     expect(config.language.output).toBe("en");
   });
 
+  it("loads the repository dogfood config", async () => {
+    const config = await loadConfig(".maintainer-kit.yml");
+
+    expect(config.project.name).toBe("maintainer-kit");
+    expect(config.features.issue_intake_brief).toBe(true);
+    expect(config.features.pr_decision_brief).toBe(true);
+    expect(config.features.issue_reproduction_pr).toBe(false);
+    expect(config.features.ci_fix_pr).toBe(false);
+  });
+
   it("deep merges user config with defaults", () => {
     const merged = deepMerge(defaultConfig as unknown as Record<string, unknown>, {
       project: {

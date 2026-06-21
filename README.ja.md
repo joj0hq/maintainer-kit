@@ -14,9 +14,30 @@
 - どんな QA / release 確認が必要そうか
 - メンテナーは次にどんな返信を送るとよいか
 
+## なぜ重要なのか
+
+OSS maintainer が必要としているのは、単にコードを「承認」する AI tool ではありません。より難しいのは、
+情報が不足した Issue、不明確な Pull Request、失敗した CI、release risk を、人間の maintainer が安全に
+行動へ移せる判断材料へ変換することです。
+
+`maintainer-kit` は、その運用レイヤーに焦点を当てています。
+
+- Issue を実行可能な maintainer brief に整理する
+- 調査開始前に不足している文脈を特定する
+- review judgment を置き換えず、PR の判断事項を整理する
+- 影響を受ける repository area と reviewer role を対応付ける
+- QA と release-readiness の checklist を生成する
+- 信頼できる maintainer の承認後にのみ draft PR を作成する
+- model call 前に secret を redact し、大きな diff / log を truncate する
+
+このため、この repository だけでなく、より安全で一貫した maintainer workflow を求める他の OSS
+maintainer にも役立ちます。
+
 ## 目次
 
+- [なぜ重要なのか](#なぜ重要なのか)
 - [状態](#状態)
+- [利用状況 / Early Adopters](#利用状況--early-adopters)
 - [機能](#機能)
 - [使いどころ](#使いどころ)
 - [出力例](#出力例)
@@ -43,6 +64,20 @@ GitHub Actions からは `v0` tag で利用できます。
 このリポジトリには、GitHub Action runtime に必要な生成済みの `dist/index.js` bundle も含まれています。
 
 現在は 0.x release line です。1.0 release までの間に、prompt、config、output の細部は変わる可能性があります。
+
+## 利用状況 / Early Adopters
+
+`maintainer-kit` は現在、この repository 自身で dogfooding されています。
+
+early adoption は意図的に保守的な設定です。
+
+- Issue と Pull Request の brief generation を有効にする
+- repository を変更する agent feature はデフォルトで無効にする
+- draft PR automation には maintainer の明示的な trigger を必要とする
+- public example と screenshot は [`docs/demo.md`](docs/demo.md) に集約する
+
+public repository で `maintainer-kit` を利用している場合は、ここに掲載できるよう Issue または PR を
+開いてください。
 
 ## 機能
 
