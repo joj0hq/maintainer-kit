@@ -1,0 +1,101 @@
+project:
+  name: maintainer-kit
+  type: oss
+  domain: maintainer_tooling
+  platforms:
+    - github-actions
+    - node
+    - typescript
+
+features:
+  issue_intake_brief: true
+  pr_decision_brief: true
+  issue_reproduction_pr: false
+  ci_fix_pr: false
+  release_readiness_brief: false
+
+agent:
+  issue_reproduction_pr:
+    trigger_label: maintainer-kit:repro
+    trigger_comment: /maintainer-kit repro
+    branch_prefix: maintainer-kit
+    allowed_paths:
+      - tests/**
+      - fixtures/**
+      - docs/**
+      - examples/**
+  ci_fix_pr:
+    trigger_comment: /maintainer-kit fix-ci
+    branch_prefix: maintainer-kit
+    allowed_paths:
+      - src/**
+      - tests/**
+      - docs/**
+      - scripts/**
+
+behavior:
+  comment_mode: update
+  auto_label: false
+  auto_close: false
+  dry_run: false
+
+model:
+  provider: openai
+  name: gpt-4.1-mini
+  max_input_tokens: 12000
+
+language:
+  output: en
+
+metrics:
+  primary:
+    - maintainer_response_time
+    - actionable_issue_rate
+    - pr_review_turnaround
+  secondary:
+    - contributor_follow_up_rate
+    - ci_repair_success_rate
+    - release_risk_caught_before_merge
+
+critical_flows:
+  - installation
+  - issue_triage
+  - pull_request_review
+  - ci_fix_draft_pr
+  - reproduction_draft_pr
+  - release_preparation
+
+sensitive_areas:
+  - github_token_permissions
+  - openai_api_key_handling
+  - secret_redaction
+  - diff_truncation
+  - failed_ci_logs
+  - generated_pull_requests
+  - release_tags
+
+roles:
+  maintainer:
+    required_for:
+      - generated_pull_requests
+      - release
+      - security
+      - public_api
+  docs:
+    required_for:
+      - documentation
+      - examples
+  qa:
+    required_for:
+      - ci_fix_draft_pr
+      - release_preparation
+
+privacy:
+  max_diff_lines: 800
+  max_diff_chars: 50000
+  redact_secrets: true
+  exclude_files:
+    - package-lock.json
+    - pnpm-lock.yaml
+    - yarn.lock
+    - "*.min.js"

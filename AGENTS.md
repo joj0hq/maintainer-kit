@@ -4,7 +4,7 @@ This file gives Codex and other coding agents durable project guidance for this 
 
 ## Project Overview
 
-- `maintainer-kit` is a MIT-licensed GitHub Action that turns GitHub Issues and Pull Requests into actionable Decision Briefs.
+- `maintainer-kit` is a MIT-licensed GitHub Action that turns maintainer-approved Issues, Pull Requests, and CI failures into actionable briefs and small draft PRs.
 - The action is human-in-the-loop by default. Do not add behavior that automatically merges PRs, closes Issues, applies labels, pushes commits, or edits repository contents unless the maintainer explicitly asks for that direction.
 - Keep repository context specific to `maintainer-kit`. Do not introduce unrelated product, company, customer, grant, sponsorship, or support-application context.
 
@@ -60,6 +60,7 @@ git diff --exit-code dist
 
 - Treat this as a public repository. Never commit secrets, tokens, private prompts, private customer context, or local machine paths.
 - Preserve secret redaction, file filtering, and diff truncation behavior when changing model inputs.
+- Never execute contributor-controlled repository code in a privileged agent job. Let the generated draft PR's normal CI validate changes.
 - Keep model output rendered through structured schemas and local Markdown renderers so comment format remains stable.
 
 ## Release And Repository Rules

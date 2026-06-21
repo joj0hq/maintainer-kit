@@ -1,4 +1,4 @@
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
@@ -74,5 +74,58 @@ describe("pathGuards", () => {
         }
       )
     ).toThrow("overwrite an existing file");
+  });
+
+  it("allows existing files for focused repair agents", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "maintainer-kit-guards-"));
+    await writeFile(join(dir, "existing.test.ts"), "already here\n");
+
+    const files = validateGeneratedFiles(
+      [
+        {
+          path: "existing.test.ts",
+          content: "fixed content\n",
+          purpose: "repair"
+        }
+      ],
+      {
+        allowedPaths: ["*.test.ts"],
+        blockedPaths: [],
+        maxFilesChanged: 1,
+        maxFileBytes: 100,
+        maxTotalBytes: 100,
+        allowExistingFiles: true,
+        root: dir
+      }
+    );
+
+    expect(files[0]?.content).toBe("fixed content\n");
+  });
+
+  it("rejects writes through symbolic links", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "maintainer-kit-guards-"));
+    await mkdir(join(dir, "real"));
+    await symlink(join(dir, "real"), join(dir, "tests"));
+
+    expect(() =>
+      validateGeneratedFiles(
+        [
+          {
+            path: "tests/fix.test.ts",
+            content: "fixed content\n",
+            purpose: "repair"
+          }
+        ],
+        {
+          allowedPaths: ["tests/**"],
+          blockedPaths: [],
+          maxFilesChanged: 1,
+          maxFileBytes: 100,
+          maxTotalBytes: 100,
+          allowExistingFiles: true,
+          root: dir
+        }
+      )
+    ).toThrow("symbolic link");
   });
 });

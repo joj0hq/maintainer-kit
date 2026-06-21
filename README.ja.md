@@ -14,9 +14,30 @@
 - どんな QA / release 確認が必要そうか
 - メンテナーは次にどんな返信を送るとよいか
 
+## なぜ重要なのか
+
+OSS maintainer が必要としているのは、単にコードを「承認」する AI tool ではありません。より難しいのは、
+情報が不足した Issue、不明確な Pull Request、失敗した CI、release risk を、人間の maintainer が安全に
+行動へ移せる判断材料へ変換することです。
+
+`maintainer-kit` は、その運用レイヤーに焦点を当てています。
+
+- Issue を実行可能な maintainer brief に整理する
+- 調査開始前に不足している文脈を特定する
+- review judgment を置き換えず、PR の判断事項を整理する
+- 影響を受ける repository area と reviewer role を対応付ける
+- QA と release-readiness の checklist を生成する
+- 信頼できる maintainer の承認後にのみ draft PR を作成する
+- model call 前に secret を redact し、大きな diff / log を truncate する
+
+このため、この repository だけでなく、より安全で一貫した maintainer workflow を求める他の OSS
+maintainer にも役立ちます。
+
 ## 目次
 
+- [なぜ重要なのか](#なぜ重要なのか)
 - [状態](#状態)
+- [利用状況 / Early Adopters](#利用状況--early-adopters)
 - [機能](#機能)
 - [使いどころ](#使いどころ)
 - [出力例](#出力例)
@@ -24,6 +45,7 @@
 - [クイックスタート](#クイックスタート)
 - [リポジトリ文脈の設定](#リポジトリ文脈の設定)
 - [再現 draft PR](#再現-draft-pr)
+- [CI 修正 draft PR](#ci-修正-draft-pr)
 - [入力](#入力)
 - [挙動](#挙動)
 - [Privacy と安全性](#privacy-と安全性)
@@ -43,11 +65,26 @@ GitHub Actions からは `v0` tag で利用できます。
 
 現在は 0.x release line です。1.0 release までの間に、prompt、config、output の細部は変わる可能性があります。
 
+## 利用状況 / Early Adopters
+
+`maintainer-kit` は現在、この repository 自身で dogfooding されています。
+
+early adoption は意図的に保守的な設定です。
+
+- Issue と Pull Request の brief generation を有効にする
+- repository を変更する agent feature はデフォルトで無効にする
+- draft PR automation には maintainer の明示的な trigger を必要とする
+- public example と screenshot は [`docs/demo.md`](docs/demo.md) に集約する
+
+public repository で `maintainer-kit` を利用している場合は、ここに掲載できるよう Issue または PR を
+開いてください。
+
 ## 機能
 
 - `issues.opened` / `issues.edited` 向けの Issue Intake Brief
 - `pull_request.opened` / `pull_request.synchronize` / `pull_request.reopened` 向けの PR Decision Brief
 - maintainer が承認した Issue からの再現 draft PR 作成
+- maintainer が承認した failed GitHub Actions run からの小さな CI 修正 draft PR 作成
 - `.maintainer-kit.yml` によるリポジトリ文脈設定
 - structured model output からの安定した Markdown rendering
 - 英語 / 日本語の brief comment 出力
@@ -147,7 +184,8 @@ Pull Request では PR Decision Brief を投稿します。
 
 - GitHub Actions
 - workflow permissions: `contents: read`, `issues: write`, `pull-requests: write`
-- `issue_reproduction_pr` を有効にする場合は `contents: write`
+- draft PR agent機能を有効にする場合は `contents: write`
+- `ci_fix_pr` を有効にする場合は `actions: read`
 - `OPENAI_API_KEY` として保存された OpenAI API key
 - `dist/index.js` を含む公開済みの `maintainer-kit` release tag
 
@@ -207,6 +245,7 @@ features:
   issue_intake_brief: true
   pr_decision_brief: true
   issue_reproduction_pr: false
+  ci_fix_pr: false
   release_readiness_brief: false
 
 agent:
@@ -219,6 +258,14 @@ agent:
       - fixtures/**
       - docs/**
       - examples/**
+  ci_fix_pr:
+    trigger_comment: /maintainer-kit fix-ci
+    branch_prefix: maintainer-kit
+    allowed_paths:
+      - src/**
+      - tests/**
+      - docs/**
+      - scripts/**
 
 behavior:
   comment_mode: update
@@ -323,9 +370,64 @@ on:
 
 ```yaml
 permissions:
+  actions: read
   contents: write
   issues: write
   pull-requests: write
+```
+
+## CI 修正 draft PR
+
+`maintainer-kit` は failed GitHub Actions run を、小さなstacked draft PRに変換できます。この機能は
+デフォルトでは無効です。
+
+```yaml
+features:
+  ci_fix_pr: true
+
+agent:
+  ci_fix_pr:
+    trigger_comment: /maintainer-kit fix-ci
+    allowed_paths:
+      - src/**
+      - tests/**
+      - docs/**
+      - scripts/**
+```
+
+`OWNER`, `MEMBER`, `COLLABORATOR` がopen中のPRへ`/maintainer-kit fix-ci`とcommentすると、Actionは次を行います。
+
+1. 対象PRの最新failed `pull_request` workflow runを探す
+2. failed jobのlogだけを取得する
+3. model call前にlogをredact・truncateする
+4. repository codeを実行せず、現在のPR headをcheckoutする
+5. guardrail内で小さな修正を生成する
+6. 元PR branchをbaseにしたstacked draft PRを作成する
+
+MVPはsame-repository PRだけに対応します。fork PRはread-onlyです。権限を持つ修正job内では
+contributor-controlled codeやmodel-generated commandを実行せず、生成されたdraft PRの通常CIで検証します。
+
+生成PRで通常workflowを起動するには、fine-grained PATまたはGitHub App tokenを`github-token`へ渡してください。
+デフォルトのActions `GITHUB_TOKEN`で作ったPRからは新しいworkflow runが起動しません。対象repositoryだけに
+限定し、Actions read、Contents / Issues / Pull requests read/writeを付与してください。
+
+```yaml
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  actions: read
+  contents: write
+  issues: write
+  pull-requests: write
+
+steps:
+  - uses: actions/checkout@v7
+  - uses: joj0hq/maintainer-kit@v0
+    with:
+      github-token: ${{ secrets.MAINTAINER_KIT_TOKEN }}
+      openai-api-key: ${{ secrets.OPENAI_API_KEY }}
 ```
 
 ## 入力
@@ -333,7 +435,7 @@ permissions:
 | 入力              | 必須 | デフォルト            | 説明                                                                       |
 | ----------------- | ---- | --------------------- | -------------------------------------------------------------------------- |
 | `github-token`    | yes  |                       | Issue / PR の読み取りとコメント投稿に使うトークン。                        |
-| `openai-api-key`  | yes  |                       | brief と再現 PR content の生成に使う OpenAI API キー。                     |
+| `openai-api-key`  | yes  |                       | brief とguardrail付きdraft PR contentの生成に使うOpenAI APIキー。          |
 | `config-path`     | no   | `.maintainer-kit.yml` | リポジトリ文脈設定ファイルへのパス。                                       |
 | `mode`            | no   | `suggest`             | 対応値: `suggest`, `dry-run`。                                             |
 | `comment-mode`    | no   | `update`              | 対応値: `create`, `update`, `none`。                                       |
@@ -342,16 +444,16 @@ permissions:
 
 ## 挙動
 
-| Event                      | Result                                                                                                                            |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `issues.opened`            | Issue Intake Brief を作成または更新します。                                                                                       |
-| `issues.edited`            | Issue Intake Brief を作成または更新します。                                                                                       |
-| `issues.labeled`           | `issue_reproduction_pr` が有効で、設定された trigger label が付いた場合に再現 draft PR を作成します。                             |
-| `issue_comment.created`    | `issue_reproduction_pr` が有効で、信頼できる maintainer が設定された trigger command を投稿した場合に再現 draft PR を作成します。 |
-| `pull_request.opened`      | PR Decision Brief を作成または更新します。                                                                                        |
-| `pull_request.synchronize` | 最新の変更ファイルをもとに PR Decision Brief を作成または更新します。                                                             |
-| `pull_request.reopened`    | PR Decision Brief を作成または更新します。                                                                                        |
-| 未対応イベント             | コメントせず正常終了します。                                                                                                      |
+| Event                      | Result                                                                                                |
+| -------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `issues.opened`            | Issue Intake Brief を作成または更新します。                                                           |
+| `issues.edited`            | Issue Intake Brief を作成または更新します。                                                           |
+| `issues.labeled`           | `issue_reproduction_pr` が有効で、設定された trigger label が付いた場合に再現 draft PR を作成します。 |
+| `issue_comment.created`    | 信頼できるmaintainerが投稿した、有効な再現またはCI修正commandを実行します。                           |
+| `pull_request.opened`      | PR Decision Brief を作成または更新します。                                                            |
+| `pull_request.synchronize` | 最新の変更ファイルをもとに PR Decision Brief を作成または更新します。                                 |
+| `pull_request.reopened`    | PR Decision Brief を作成または更新します。                                                            |
+| 未対応イベント             | コメントせず正常終了します。                                                                          |
 
 コメントモード:
 
@@ -386,6 +488,9 @@ permissions:
 `features.issue_reproduction_pr` を明示的に有効化し、信頼できる trigger が使われた場合、この Action は branch
 作成、生成された再現ファイルの commit、branch push、draft PR 作成を行えます。それでも PR の merge、Issue の
 close、設定された allowed paths 外の編集は行いません。
+
+`features.ci_fix_pr`を有効にすると、failed GitHub Actions logを読み、same-repository PR向けのstacked draft
+PRを作成できます。権限を持つ修正job内ではcontributor-controlled codeを実行しません。
 
 ## プロジェクトの状態
 
