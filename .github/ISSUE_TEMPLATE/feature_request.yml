@@ -1,0 +1,89 @@
+name: Feature request
+description: Propose a focused improvement to maintainer workflows.
+title: "[Feature]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for proposing an improvement. `maintainer-kit` stays human-in-the-loop by default, so proposals should explain the maintainer decision they improve and any safety implications.
+
+  - type: checkboxes
+    id: existing_request
+    attributes:
+      label: Existing request
+      description: Please check whether this idea is already being discussed.
+      options:
+        - label: I searched the existing Issues and did not find a duplicate.
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Maintainer problem
+      description: What recurring maintainer decision or workflow is currently difficult?
+      placeholder: Maintainers cannot quickly determine whether...
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed_outcome
+    attributes:
+      label: Proposed outcome
+      description: Describe the observable outcome rather than prescribing a large implementation.
+      placeholder: The generated brief should identify...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Feature area
+      options:
+        - Issue intake brief
+        - Pull Request decision brief
+        - Reproduction draft PR
+        - CI fix draft PR
+        - Release readiness
+        - Configuration
+        - Privacy and redaction
+        - Documentation or examples
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: example
+    attributes:
+      label: Example scenario
+      description: Give a public or synthetic Issue, PR, CI, or release scenario that demonstrates the need.
+      placeholder: |
+        A maintainer receives...
+        The missing decision is...
+        A useful brief would...
+    validations:
+      required: true
+
+  - type: textarea
+    id: safety
+    attributes:
+      label: Human approval and safety
+      description: Explain whether this changes permissions, model inputs, comments, branches, commits, draft PRs, labels, Issue state, or release behavior.
+      placeholder: This remains read-only because... / This would require explicit maintainer approval before...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Describe current workarounds or smaller alternatives.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      options:
+        - label: I may be able to help implement or document this change after the direction is agreed.
+          required: false

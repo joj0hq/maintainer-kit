@@ -1,6 +1,8 @@
 import * as core from "@actions/core";
 import * as github from "@actions/github";
+import { getCiFixTrigger } from "./agent/ciFixTrigger.js";
 import { getIssueReproductionTrigger } from "./agent/issueReproductionTrigger.js";
+import { runCiFixPr } from "./agent/runCiFixPr.js";
 import { runIssueReproductionPr } from "./agent/runIssueReproductionPr.js";
 import { generateStructuredJson } from "./ai/client.js";
 import { buildIssueIntakePrompt } from "./ai/prompts/buildIssueIntakePrompt.js";
@@ -19,6 +21,8 @@ import type {
 } from "./config/schema.js";
 import {
   getEventType,
+  getRepository,
+  isSupportedCiFixEvent,
   isSupportedIssueEvent,
   isSupportedIssueReproductionEvent,
   isSupportedPullRequestEvent,
@@ -58,6 +62,7 @@ async function run(): Promise<void> {
   if (
     !isSupportedIssueEvent(actionContext) &&
     !isSupportedIssueReproductionEvent(actionContext) &&
+    !isSupportedCiFixEvent(actionContext) &&
     !isSupportedPullRequestEvent(actionContext)
   ) {
     core.info(`Unsupported event type: ${eventType}. maintainer-kit did not run.`);
@@ -69,6 +74,30 @@ async function run(): Promise<void> {
     core.getInput("comment-mode") || config.behavior.comment_mode
   );
   const dryRun = executionMode === "dry-run" || config.behavior.dry_run;
+
+  if (isSupportedCiFixEvent(actionContext)) {
+    const trigger = getCiFixTrigger(actionContext, config);
+    if (trigger.triggered) {
+      const githubToken = getRequiredInput("github-token");
+      const openAiApiKey = getRequiredInput("openai-api-key");
+      const model = core.getInput("model") || config.model.name || undefined;
+      const octokit = github.getOctokit(githubToken);
+      await runCiFixPrHandler({
+        octokit,
+        context: actionContext,
+        config,
+        openAiApiKey,
+        model,
+        commentMode,
+        dryRun,
+        eventType,
+        startedAt,
+        githubToken
+      });
+      return;
+    }
+  }
+
   if (isSupportedIssueReproductionEvent(actionContext)) {
     const trigger = getIssueReproductionTrigger(actionContext, config);
     if (trigger.triggered) {
@@ -193,6 +222,36 @@ async function runIssueReproductionPrHandler(options: HandlerOptions): Promise<v
   logUsage(logger, {
     eventType: options.eventType,
     feature: "issue_reproduction_pr",
+    commentResult: result.commentResult,
+    created: result.created,
+    files: result.files.length,
+    skippedReason: result.skippedReason,
+    durationMs: Date.now() - options.startedAt
+  });
+}
+
+async function runCiFixPrHandler(options: HandlerOptions & { githubToken: string }): Promise<void> {
+  const pullRequestNumber = Number(options.context.payload.issue?.number);
+  if (!Number.isInteger(pullRequestNumber) || pullRequestNumber <= 0) {
+    throw new Error("Pull request number is missing from the issue_comment event.");
+  }
+
+  const result = await runCiFixPr({
+    octokit: options.octokit,
+    githubToken: options.githubToken,
+    repository: getRepository(options.context),
+    pullRequestNumber,
+    config: options.config,
+    openAiApiKey: options.openAiApiKey,
+    model: options.model,
+    commentMode: options.commentMode,
+    dryRun: options.dryRun,
+    logger
+  });
+
+  logUsage(logger, {
+    eventType: options.eventType,
+    feature: "ci_fix_pr",
     commentResult: result.commentResult,
     created: result.created,
     files: result.files.length,

@@ -1,0 +1,117 @@
+name: Bug report
+description: Report reproducible incorrect behavior in maintainer-kit.
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a problem. Clear, synthetic details help maintainers investigate safely.
+
+        Do not include API keys, tokens, private repository content, or unredacted logs. Report security-sensitive issues through a private security advisory instead.
+
+  - type: checkboxes
+    id: existing_issue
+    attributes:
+      label: Existing issue
+      description: Please check whether this problem has already been reported.
+      options:
+        - label: I searched the existing Issues and did not find a duplicate.
+          required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: maintainer-kit version
+      description: Provide the action ref or release tag, such as `v0`, `v0.3.0`, or a commit SHA.
+      placeholder: v0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: event
+    attributes:
+      label: GitHub event or feature
+      description: Select the flow where the problem occurred.
+      options:
+        - Issue intake brief
+        - Pull Request decision brief
+        - Reproduction draft PR
+        - CI fix draft PR
+        - Configuration loading
+        - Comment publishing
+        - Privacy filtering or redaction
+        - Release workflow
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: current_behavior
+    attributes:
+      label: Current behavior
+      description: Describe what happened, including any maintainer-facing message or missing result.
+      placeholder: |
+        The command appears to do nothing.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected_behavior
+    attributes:
+      label: Expected behavior
+      description: Describe the result you expected.
+      placeholder: |
+        The action should post a short comment explaining that no failed pull_request workflow run was found.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Use a public or synthetic example and include the event sequence.
+      placeholder: |
+        1. Enable `ci_fix_pr`.
+        2. Open a same-repository PR without a failed workflow run.
+        3. Comment `/maintainer-kit fix-ci`.
+        4. Observe that the action exits without a clear maintainer-facing explanation.
+    validations:
+      required: true
+
+  - type: textarea
+    id: workflow
+    attributes:
+      label: Workflow and configuration
+      description: Paste the smallest relevant workflow and `.maintainer-kit.yml` excerpts with secrets removed.
+      render: yaml
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Action logs
+      description: Paste only the relevant redacted lines. Remove tokens, private diffs, repository content, and other sensitive data.
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional context
+      description: Add public links, screenshots, or constraints that may help investigation.
+      placeholder: |
+        - Same-repository PR
+        - `ci_fix_pr` enabled
+        - No failed workflow run exists yet
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: privacy_confirmation
+    attributes:
+      label: Privacy confirmation
+      options:
+        - label: I removed secrets, tokens, private repository content, and sensitive unredacted logs.
+          required: true

@@ -15,6 +15,14 @@ export interface RepositoryContextSnapshot {
   files: RepositoryContextFile[];
 }
 
+export interface RepositoryContextAgentConfig {
+  blocked_paths: string[];
+  context_paths: string[];
+  max_file_bytes: number;
+  max_context_files: number;
+  max_context_chars: number;
+}
+
 const skippedDirectories = new Set([
   ".git",
   ".hg",
@@ -46,17 +54,25 @@ export async function collectRepositoryContext(
   config: MaintainerKitConfig,
   root = cwd()
 ): Promise<RepositoryContextSnapshot> {
-  const agentConfig = config.agent.issue_reproduction_pr;
+  return collectRepositoryContextForAgent(config, config.agent.issue_reproduction_pr, root);
+}
+
+export async function collectRepositoryContextForAgent(
+  config: MaintainerKitConfig,
+  agentConfig: RepositoryContextAgentConfig,
+  root = cwd()
+): Promise<RepositoryContextSnapshot> {
   const allFiles = await listRepositoryFiles(root);
-  const fileIndex = allFiles
+  const matchingFiles = allFiles
     .filter((path) => !isExcluded(path, config.privacy.exclude_files))
     .filter((path) => !isBlocked(path, agentConfig.blocked_paths))
     .filter((path) => isAllowedContext(path, agentConfig.context_paths));
+  const fileIndex = matchingFiles.slice(0, agentConfig.max_context_files * 5);
 
   const files: RepositoryContextFile[] = [];
   let totalChars = 0;
 
-  for (const path of fileIndex) {
+  for (const path of matchingFiles) {
     if (files.length >= agentConfig.max_context_files) {
       break;
     }
